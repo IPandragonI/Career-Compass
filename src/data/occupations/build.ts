@@ -1,11 +1,4 @@
-import type {
-  Confidence,
-  ConstraintMap,
-  EntryLevel,
-  Occupation,
-  Scale,
-  WorkEnvironment,
-} from "@/types/occupation";
+import type { Confidence, ConstraintMap, EntryLevel, Occupation, Scale, WorkEnvironment } from "@/types/occupation";
 import type { ConstraintId, FamilyId, InterestId, MotivationId, SkillId } from "@/data/taxonomy";
 import { ENV_IDS } from "@/data/taxonomy";
 
@@ -65,7 +58,13 @@ export interface OccInput {
   conf?: Confidence;
 }
 
-const split = (s: string | undefined, sep: string) => (s ? s.split(sep).map((x) => x.trim()).filter(Boolean) : []);
+const split = (s: string | undefined, sep: string) =>
+  s
+    ? s
+        .split(sep)
+        .map((x) => x.trim())
+        .filter(Boolean)
+    : [];
 
 export function o(x: OccInput): Occupation {
   const envVals = x.env.trim().split(/\s+/);
@@ -123,7 +122,11 @@ export function o(x: OccInput): Occupation {
     stability: x.stab ?? null,
     sourceReferences: [
       { sourceId: "rome", note: `Domaine ROME ${x.rome} (repère éditorial, à vérifier)` },
-      { sourceId: "onisep", note: "Rechercher ce métier sur l’Onisep", url: `https://www.onisep.fr/recherche?context=metier&text=${encodeURIComponent(x.name)}` },
+      {
+        sourceId: "onisep",
+        note: "Rechercher ce métier sur l’Onisep",
+        url: `https://www.onisep.fr/recherche?context=metier&text=${encodeURIComponent(x.name)}`,
+      },
       { sourceId: "editorial" },
     ],
     provenance: {

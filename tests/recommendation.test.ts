@@ -60,7 +60,9 @@ describe("moteur de recommandation", () => {
 
   it("évite les quasi-doublons (même groupe de dédoublonnage)", () => {
     for (const p of ALL_PERSONAS) {
-      const groups = run(p).res.recommendations.map((r) => OCCUPATION_BY_ID[r.occupationId]!.dedupeGroup).filter(Boolean);
+      const groups = run(p)
+        .res.recommendations.map((r) => OCCUPATION_BY_ID[r.occupationId]!.dedupeGroup)
+        .filter(Boolean);
       expect(new Set(groups).size).toBe(groups.length);
     }
   });

@@ -2,7 +2,7 @@
 
 import { ArrowLeft, ArrowRight, Check, Clock, Info, Pause, SkipForward } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Answer, AversionLevel, Question, QuestionContext } from "@/types/assessment";
 import { AVERSION_LABEL, DIMENSION_LABEL, type DimensionId } from "@/types/assessment";
 import type { StoredSession } from "@/lib/storage/migrations";
@@ -20,7 +20,10 @@ function seededShuffle<T>(items: T[], seed: string): T[] {
   for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
   const rnd = () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) ^ Math.imul(h ^ (h >>> 13), 3266489909)), ((h >>> 0) % 10000) / 10000);
   const a = [...items];
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j]!, a[i]!]; }
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [a[i], a[j]] = [a[j]!, a[i]!];
+  }
   return a;
 }
 
@@ -33,39 +36,93 @@ export function describeAnswer(q: Question, a: Answer | undefined, ctx: Question
   return `${Object.keys(a.values).length} points renseignés`;
 }
 
-function QuestionBody({ question, ctx, initial, seed, canSkip, onSubmit, onSkip, onBack, backLabel }: {
-  question: Question; ctx: QuestionContext; initial?: Answer; seed: string; canSkip: boolean;
-  onSubmit: (a: Answer) => void; onSkip: () => void; onBack: () => void; backLabel: string;
+function QuestionBody({
+  question,
+  ctx,
+  initial,
+  seed,
+  canSkip,
+  onSubmit,
+  onSkip,
+  onBack,
+  backLabel,
+}: {
+  question: Question;
+  ctx: QuestionContext;
+  initial?: Answer;
+  seed: string;
+  canSkip: boolean;
+  onSubmit: (a: Answer) => void;
+  onSkip: () => void;
+  onBack: () => void;
+  backLabel: string;
 }) {
   const options = useMemo(() => {
     const raw = questionOptions(question, ctx);
     if (!question.shuffle) return raw;
     const fixed = raw.filter((o) => o.exclusive);
-    return [...seededShuffle(raw.filter((o) => !o.exclusive), seed + question.id), ...fixed];
+    return [
+      ...seededShuffle(
+        raw.filter((o) => !o.exclusive),
+        seed + question.id,
+      ),
+      ...fixed,
+    ];
   }, [question, ctx, seed]);
 
   const [sel, setSel] = useState<string[]>(initial?.kind === "single" ? [initial.value] : initial?.kind === "multi" ? initial.values : []);
-  const [matrix, setMatrix] = useState<Partial<Record<string, AversionLevel>>>(initial?.kind === "matrix" ? initial.values : {});
+  // Matrice des points de blocage : pré-remplie avec ce que les réponses précédentes laissaient déjà entendre.
+  const suggested = useMemo<Partial<Record<string, AversionLevel>>>(() => {
+    const out: Partial<Record<string, AversionLevel>> = {};
+    if (question.kind !== "matrix" || initial?.kind === "matrix") return out;
+    for (const it of question.items ?? []) {
+      const lv = ctx.profile.aversions[it.id]?.level;
+      if (lv !== undefined) out[it.id] = lv;
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [matrix, setMatrix] = useState<Partial<Record<string, AversionLevel>>>(initial?.kind === "matrix" ? initial.values : suggested);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // Chaque nouvelle question déplace le focus sur son titre : lecteurs d’écran et clavier suivent le changement.
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
   const [text, setText] = useState(initial?.kind === "text" ? initial.text : "");
 
   const kind = question.kind;
-  const valid = kind === "text" ? true : kind === "matrix" ? (question.items ?? []).every((i) => matrix[i.id] !== undefined) : sel.length > 0;
+  const valid =
+    kind === "text" ? true : kind === "matrix" ? (question.items ?? []).every((i) => matrix[i.id] !== undefined) : sel.length > 0;
   const submit = () => {
     if (!valid) return;
     if (kind === "matrix") onSubmit({ kind: "matrix", values: matrix });
-    else if (kind === "text") text.trim() ? onSubmit({ kind: "text", text: text.trim() }) : onSkip();
-    else if (kind === "multi") onSubmit({ kind: "multi", values: sel });
+    else if (kind === "text") {
+      if (text.trim()) onSubmit({ kind: "text", text: text.trim() });
+      else onSkip();
+    } else if (kind === "multi") onSubmit({ kind: "multi", values: sel });
     else onSubmit({ kind: "single", value: sel[0]! });
   };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Les raccourcis chiffrés ne s’activent que si rien d’autre n’a le focus (ils ne gênent pas les technologies d’assistance).
+      if (document.activeElement && document.activeElement !== document.body) return;
       const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" && (t as HTMLInputElement).type === "text" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
+      if (t && ((t.tagName === "INPUT" && (t as HTMLInputElement).type === "text") || t.tagName === "TEXTAREA" || t.tagName === "SELECT"))
+        return;
       if (!/^[1-9]$/.test(e.key) || (kind !== "single" && kind !== "multi" && kind !== "forced" && kind !== "scale")) return;
       const o = options[Number(e.key) - 1];
       if (!o) return;
-      if (kind === "multi") setSel((cur) => (cur.includes(o.id) ? cur.filter((x) => x !== o.id) : question.maxSelect && cur.length >= question.maxSelect ? cur : o.exclusive ? [o.id] : [...cur.filter((x) => !options.find((p) => p.id === x)?.exclusive), o.id]));
+      if (kind === "multi")
+        setSel((cur) =>
+          cur.includes(o.id)
+            ? cur.filter((x) => x !== o.id)
+            : question.maxSelect && cur.length >= question.maxSelect
+              ? cur
+              : o.exclusive
+                ? [o.id]
+                : [...cur.filter((x) => !options.find((p) => p.id === x)?.exclusive), o.id],
+        );
       else setSel([o.id]);
     };
     window.addEventListener("keydown", onKey);
@@ -81,30 +138,83 @@ function QuestionBody({ question, ctx, initial, seed, canSkip, onSubmit, onSkip,
   };
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); submit(); }} className="enter">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+      className="enter"
+    >
       <Card>
-        <h2 className="text-xl font-bold leading-snug sm:text-2xl" id="q-title">{questionPrompt(question, ctx)}</h2>
+        <h2 ref={headingRef} tabIndex={-1} className="text-xl font-bold leading-snug outline-none sm:text-2xl" id="q-title">
+          {questionPrompt(question, ctx)}
+        </h2>
         {question.help && <p className="mt-2 text-sm text-muted">{question.help}</p>}
         <div className="mt-6" aria-labelledby="q-title">
           {kind === "forced" && (
-            <ChoiceGroup legend="Votre choix" hideLegend name={question.id} value={sel} onChange={setSel} options={choiceOptions} columns={2} />
+            <ChoiceGroup
+              legend="Votre choix"
+              hideLegend
+              name={question.id}
+              value={sel}
+              onChange={setSel}
+              options={choiceOptions}
+              columns={2}
+            />
           )}
           {(kind === "single" || kind === "scale") && (
             <ChoiceGroup legend="Votre choix" hideLegend name={question.id} value={sel} onChange={setSel} options={choiceOptions} />
           )}
           {kind === "multi" && (
-            <ChoiceGroup legend="Vos choix" hideLegend multiple max={question.maxSelect} name={question.id} value={sel} onChange={onMulti} options={choiceOptions} columns={options.length > 8 ? 2 : 1} />
+            <ChoiceGroup
+              legend="Vos choix"
+              hideLegend
+              multiple
+              max={question.maxSelect}
+              name={question.id}
+              value={sel}
+              onChange={onMulti}
+              options={choiceOptions}
+              columns={options.length > 8 ? 2 : 1}
+            />
           )}
           {kind === "text" && (
             <div>
-              <label htmlFor="free-text" className="sr-only">Votre réponse</label>
-              <textarea id="free-text" rows={4} maxLength={500} className={`${inputClass} resize-y`} placeholder={question.placeholder} value={text} onChange={(e) => setText(e.target.value)} />
+              <label htmlFor="free-text" className="sr-only">
+                Votre réponse
+              </label>
+              <textarea
+                id="free-text"
+                rows={4}
+                maxLength={500}
+                className={`${inputClass} resize-y`}
+                placeholder={question.placeholder}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+              />
               <p className="mt-1 text-xs text-muted">{text.length}/500 — facultatif, conservé sur votre appareil.</p>
             </div>
           )}
           {kind === "matrix" && (
             <div className="space-y-4">
-              <p className="text-sm text-muted" aria-live="polite">{Object.keys(matrix).length} sur {question.items?.length} renseignés</p>
+              <p className="text-sm text-muted" aria-live="polite">
+                {Object.keys(matrix).length} sur {question.items?.length} renseignés
+                {Object.keys(suggested).length > 0 &&
+                  " — certaines lignes sont pré-remplies d’après vos réponses précédentes : vérifiez-les."}
+              </p>
+              <button
+                type="button"
+                className={btn("secondary", "!min-h-10")}
+                onClick={() =>
+                  setMatrix((m) => {
+                    const next = { ...m };
+                    for (const it of question.items ?? []) if (next[it.id] === undefined) next[it.id] = 0;
+                    return next;
+                  })
+                }
+              >
+                Considérer les lignes restantes comme « Pas un problème »
+              </button>
               {question.items?.map((it) => (
                 <fieldset key={it.id} className="rounded-xl border border-line p-3">
                   <legend className="px-1 text-[15px] font-semibold">{it.label}</legend>
@@ -112,8 +222,17 @@ function QuestionBody({ question, ctx, initial, seed, canSkip, onSubmit, onSkip,
                     {([3, 2, 1, 0] as AversionLevel[]).map((lv) => {
                       const checked = matrix[it.id] === lv;
                       return (
-                        <label key={lv} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-accent ${checked ? (lv === 3 ? "border-danger bg-danger-soft font-semibold text-danger" : "border-brand bg-brand-soft font-semibold text-brand-dark") : "border-line bg-card hover:border-brand/60"}`}>
-                          <input type="radio" className="sr-only" name={`${question.id}-${it.id}`} checked={checked} onChange={() => setMatrix((m) => ({ ...m, [it.id]: lv }))} />
+                        <label
+                          key={lv}
+                          className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-accent ${checked ? (lv === 3 ? "border-danger bg-danger-soft font-semibold text-danger" : "border-brand bg-brand-soft font-semibold text-brand-dark") : "border-line bg-card hover:border-brand/60"}`}
+                        >
+                          <input
+                            type="radio"
+                            className="sr-only"
+                            name={`${question.id}-${it.id}`}
+                            checked={checked}
+                            onChange={() => setMatrix((m) => ({ ...m, [it.id]: lv }))}
+                          />
                           {checked && <Check aria-hidden className="h-4 w-4 shrink-0" strokeWidth={3} />}
                           {AVERSION_LABEL[lv]}
                         </label>
@@ -128,20 +247,46 @@ function QuestionBody({ question, ctx, initial, seed, canSkip, onSubmit, onSkip,
       </Card>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <button type="button" className={btn("ghost")} onClick={onBack}><ArrowLeft aria-hidden className="h-4 w-4" />{backLabel}</button>
+        <button type="button" className={btn("ghost")} onClick={onBack}>
+          <ArrowLeft aria-hidden className="h-4 w-4" />
+          {backLabel}
+        </button>
         <div className="flex flex-wrap gap-3">
-          {canSkip && kind !== "text" && <button type="button" className={btn("secondary")} onClick={onSkip}><SkipForward aria-hidden className="h-4 w-4" />Passer</button>}
-          <button type="submit" className={btn("primary")} disabled={!valid}>Continuer<ArrowRight aria-hidden className="h-4 w-4" /></button>
+          {canSkip && kind !== "text" && (
+            <button type="button" className={btn("secondary")} onClick={onSkip}>
+              <SkipForward aria-hidden className="h-4 w-4" />
+              Passer
+            </button>
+          )}
+          <button type="submit" className={btn("primary")} disabled={!valid}>
+            Continuer
+            <ArrowRight aria-hidden className="h-4 w-4" />
+          </button>
         </div>
       </div>
-      {!valid && kind !== "text" && <p className="mt-2 text-right text-xs text-muted" role="status">{kind === "matrix" ? "Renseignez chaque ligne, ou passez la question." : "Sélectionnez une réponse pour continuer, ou passez la question."}</p>}
+      {!valid && kind !== "text" && (
+        <p className="mt-2 text-right text-xs text-muted" role="status">
+          {kind === "matrix"
+            ? "Renseignez chaque ligne, ou passez la question."
+            : "Sélectionnez une réponse pour continuer, ou passez la question."}
+        </p>
+      )}
     </form>
   );
 }
 
-export function QuestionFlow({ session, update, initialIndex, onBackToOnboarding, onReview }: {
-  session: StoredSession; update: (fn: (s: StoredSession) => StoredSession) => void;
-  initialIndex: number | null; onBackToOnboarding: () => void; onReview: () => void;
+export function QuestionFlow({
+  session,
+  update,
+  initialIndex,
+  onBackToOnboarding,
+  onReview,
+}: {
+  session: StoredSession;
+  update: (fn: (s: StoredSession) => StoredSession) => void;
+  initialIndex: number | null;
+  onBackToOnboarding: () => void;
+  onReview: () => void;
 }) {
   const { onboarding, engine } = session;
   const [viewIdx, setViewIdx] = useState<number | null>(initialIndex);
@@ -150,13 +295,23 @@ export function QuestionFlow({ session, update, initialIndex, onBackToOnboarding
   const next = useMemo(() => nextQuestion(onboarding, engine), [onboarding, engine]);
   const progress = useMemo(() => progressInfo(onboarding, engine), [onboarding, engine]);
 
-  useEffect(() => { if (effectiveIdx === null && next.done) onReview(); }, [effectiveIdx, next.done, onReview]);
+  useEffect(() => {
+    if (effectiveIdx === null && next.done) onReview();
+  }, [effectiveIdx, next.done, onReview]);
 
   const question = effectiveIdx !== null ? QUESTION_BY_ID[engine.asked[effectiveIdx]!] : next.question;
   const askedBefore = effectiveIdx !== null ? engine.asked.slice(0, effectiveIdx) : engine.asked;
-  const ctx = useMemo<QuestionContext>(() => ({ onboarding, answers: engine.answers, asked: askedBefore, profile: buildProfile(onboarding, engine.answers, askedBefore) }), [onboarding, engine.answers, askedBefore]);
+  const ctx = useMemo<QuestionContext>(
+    () => ({ onboarding, answers: engine.answers, asked: askedBefore, profile: buildProfile(onboarding, engine.answers, askedBefore) }),
+    [onboarding, engine.answers, askedBefore],
+  );
 
-  if (!question) return <p className="text-muted" role="status">Préparation de vos résultats…</p>;
+  if (!question)
+    return (
+      <p className="text-muted" role="status">
+        Préparation de vos résultats…
+      </p>
+    );
 
   const number = (effectiveIdx ?? engine.asked.length) + 1;
   const existing = effectiveIdx !== null ? engine.answers[question.id] : undefined;
@@ -178,34 +333,67 @@ export function QuestionFlow({ session, update, initialIndex, onBackToOnboarding
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <p className="font-semibold text-accent" aria-live="polite">Question {number}{effectiveIdx !== null ? " (modification)" : ""}</p>
-        <p className="flex items-center gap-1.5 text-muted"><Clock aria-hidden className="h-4 w-4" />environ {progress.remainingMinutes} min restantes</p>
+        <p className="font-semibold text-accent" aria-live="polite">
+          Question {number}
+          {effectiveIdx !== null ? " (modification)" : ""}
+        </p>
+        <p className="flex items-center gap-1.5 text-muted">
+          <Clock aria-hidden className="h-4 w-4" />
+          environ {progress.remainingMinutes} min restantes
+        </p>
       </div>
       <ol className="mt-3 flex flex-wrap gap-1.5" aria-label="Étapes du bilan">
         {STAGES.map((d) => {
           const done = cov[d] >= COVERAGE_TARGET[d];
           const current = question.dimension === d;
           return (
-            <li key={d} aria-current={current ? "step" : undefined} className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${current ? "border-brand bg-brand text-white" : done ? "border-brand/30 bg-brand-soft text-brand-dark" : "border-line bg-card text-muted"}`}>
+            <li
+              key={d}
+              aria-current={current ? "step" : undefined}
+              className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${current ? "border-brand bg-brand text-white" : done ? "border-brand/30 bg-brand-soft text-brand-dark" : "border-line bg-card text-muted"}`}
+            >
               {done && !current && <Check aria-hidden className="h-3 w-3" strokeWidth={3} />}
-              {DIMENSION_LABEL[d]}{done && !current && <span className="sr-only"> (suffisamment documenté)</span>}
+              {DIMENSION_LABEL[d]}
+              {done && !current && <span className="sr-only"> (suffisamment documenté)</span>}
             </li>
           );
         })}
       </ol>
-      <p className="mt-2 text-xs text-muted">Le nombre de questions s’adapte à vos réponses : cette indication est une estimation, pas un pourcentage d’avancement.</p>
+      <p className="mt-2 text-xs text-muted">
+        Le nombre de questions s’adapte à vos réponses : cette indication est une estimation, pas un pourcentage d’avancement.
+      </p>
 
       <div className="mt-5" key={question.id}>
-        {why && <p className="mb-3 flex items-start gap-2 rounded-xl bg-brand-soft/60 px-3 py-2 text-sm text-brand-dark"><Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" /><span>{why}</span></p>}
+        {why && (
+          <p className="mb-3 flex items-start gap-2 rounded-xl bg-brand-soft/60 px-3 py-2 text-sm text-brand-dark">
+            <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{why}</span>
+          </p>
+        )}
         <QuestionBody
-          question={question} ctx={ctx} initial={existing} seed={session.startedAt}
-          canSkip={!question.mandatory} onSubmit={submit} onSkip={() => submit({ kind: "skipped" })} onBack={back}
-          backLabel={effectiveIdx === 0 || (effectiveIdx === null && engine.asked.length === 0) ? "Retour à l’accueil du bilan" : "Question précédente"}
+          question={question}
+          ctx={ctx}
+          initial={existing}
+          seed={session.startedAt}
+          canSkip={!question.mandatory}
+          onSubmit={submit}
+          onSkip={() => submit({ kind: "skipped" })}
+          onBack={back}
+          backLabel={
+            effectiveIdx === 0 || (effectiveIdx === null && engine.asked.length === 0)
+              ? "Retour à l’accueil du bilan"
+              : "Question précédente"
+          }
         />
       </div>
 
       <p className="mt-8 text-sm text-muted">
-        <Pause aria-hidden className="mr-1 inline h-4 w-4" />Besoin d’une pause ? Votre progression est enregistrée automatiquement sur cet appareil. <Link href="/" className="font-medium text-brand underline underline-offset-4">Quitter et reprendre plus tard</Link>.
+        <Pause aria-hidden className="mr-1 inline h-4 w-4" />
+        Besoin d’une pause ? Votre progression est enregistrée automatiquement sur cet appareil.{" "}
+        <Link href="/" className="font-medium text-brand underline underline-offset-4">
+          Quitter et reprendre plus tard
+        </Link>
+        .
       </p>
     </div>
   );

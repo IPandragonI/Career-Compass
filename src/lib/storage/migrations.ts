@@ -24,6 +24,10 @@ export interface StoredSession {
   startedAt: string;
   updatedAt: string;
   results?: StoredResultsMeta;
+  /** Résultats du bilan précédent, pour comparer ce qui change quand on modifie ses réponses. */
+  previousResults?: StoredResultsMeta;
+  /** Retours locaux de la personne sur les pistes (jamais transmis) : 1 = me parle, -1 = ne me parle pas. */
+  feedback?: Record<string, 1 | -1>;
 }
 
 export const newSession = (now = new Date().toISOString()): StoredSession => ({
@@ -42,17 +46,24 @@ const isObj = (x: unknown): x is Record<string, unknown> => typeof x === "object
 function sanitizeAnswer(a: unknown): Answer | null {
   if (!isObj(a)) return null;
   switch (a.kind) {
-    case "skipped": return { kind: "skipped" };
-    case "single": return typeof a.value === "string" ? { kind: "single", value: a.value } : null;
-    case "multi": return Array.isArray(a.values) && a.values.every((v) => typeof v === "string") ? { kind: "multi", values: a.values as string[] } : null;
-    case "text": return typeof a.text === "string" ? { kind: "text", text: a.text.slice(0, 600) } : null;
+    case "skipped":
+      return { kind: "skipped" };
+    case "single":
+      return typeof a.value === "string" ? { kind: "single", value: a.value } : null;
+    case "multi":
+      return Array.isArray(a.values) && a.values.every((v) => typeof v === "string")
+        ? { kind: "multi", values: a.values as string[] }
+        : null;
+    case "text":
+      return typeof a.text === "string" ? { kind: "text", text: a.text.slice(0, 600) } : null;
     case "matrix": {
       if (!isObj(a.values)) return null;
       const values: Record<string, 0 | 1 | 2 | 3> = {};
       for (const [k, v] of Object.entries(a.values)) if (v === 0 || v === 1 || v === 2 || v === 3) values[k] = v;
       return { kind: "matrix", values };
     }
-    default: return null;
+    default:
+      return null;
   }
 }
 
@@ -95,13 +106,21 @@ export function migrateSession(raw: unknown): StoredSession | null {
     session.engine = { asked: [], answers: {} };
     if (session.phase === "revue" || session.phase === "termine") session.phase = "questions";
   }
-  if (isObj(raw.results) && typeof raw.results.generatedAt === "string" && typeof raw.results.answersHash === "string") {
-    session.results = {
-      generatedAt: raw.results.generatedAt,
-      answersHash: raw.results.answersHash,
-      occupationIds: Array.isArray(raw.results.occupationIds) ? (raw.results.occupationIds as string[]) : [],
-      directionIds: Array.isArray(raw.results.directionIds) ? (raw.results.directionIds as string[]) : [],
+  const meta = (r: unknown): StoredResultsMeta | undefined => {
+    if (!isObj(r) || typeof r.generatedAt !== "string" || typeof r.answersHash !== "string") return undefined;
+    return {
+      generatedAt: r.generatedAt,
+      answersHash: r.answersHash,
+      occupationIds: Array.isArray(r.occupationIds) ? (r.occupationIds as unknown[]).filter((x): x is string => typeof x === "string") : [],
+      directionIds: Array.isArray(r.directionIds) ? (r.directionIds as unknown[]).filter((x): x is string => typeof x === "string") : [],
     };
+  };
+  session.results = meta(raw.results);
+  session.previousResults = meta(raw.previousResults);
+  if (isObj(raw.feedback)) {
+    const fb: Record<string, 1 | -1> = {};
+    for (const [k, v] of Object.entries(raw.feedback)) if (v === 1 || v === -1) fb[k] = v;
+    session.feedback = fb;
   }
   return session;
 }

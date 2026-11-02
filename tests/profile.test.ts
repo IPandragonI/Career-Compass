@@ -72,7 +72,10 @@ describe("construction du profil", () => {
     // Données/numérique + terrain exclusif : contradiction détectée, non résolue.
     const c = p.contradictions.find((x) => x.id === "c-desk-field");
     if (c) expect(c.resolved).toBe(false);
-    const resolved = buildProfile({}, { ...answers, "q-fu-desk-field-balance": { kind: "single", value: "half" } }, [...Object.keys(answers), "q-fu-desk-field-balance"]);
+    const resolved = buildProfile({}, { ...answers, "q-fu-desk-field-balance": { kind: "single", value: "half" } }, [
+      ...Object.keys(answers),
+      "q-fu-desk-field-balance",
+    ]);
     const c2 = resolved.contradictions.find((x) => x.id === "c-desk-field");
     if (c2) expect(c2.resolved).toBe(true);
   });

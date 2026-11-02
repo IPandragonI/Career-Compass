@@ -17,4 +17,5 @@ export function formatDate(iso: string | null): string {
   return Number.isNaN(d.getTime()) ? "non vérifiée" : new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" }).format(d);
 }
 
-export const formatEuro = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
+export const formatEuro = (n: number) =>
+  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);

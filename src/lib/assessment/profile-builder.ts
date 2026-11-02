@@ -13,17 +13,11 @@ import type {
 } from "@/types/profile";
 import { TRAINING_MONTHS } from "@/types/profile";
 import type { ConstraintId, EnvDimId, FamilyId, InterestId, MotivationId, SkillId } from "@/data/taxonomy";
-import {
-  CONSTRAINT_BY_ID,
-  CONSTRAINT_IDS,
-  ENV_IDS,
-  INTEREST_BY_ID,
-  INTEREST_IDS,
-  MOTIVATION_IDS,
-  SKILL_IDS,
-} from "@/data/taxonomy";
+import { CONSTRAINT_BY_ID, CONSTRAINT_IDS, ENV_IDS, INTEREST_BY_ID, INTEREST_IDS, MOTIVATION_IDS, SKILL_IDS } from "@/data/taxonomy";
 import { EDUCATION_LEVELS, STUDY_FIELD_BY_ID } from "@/data/assessment/onboarding-options";
 import { QUESTION_BY_ID } from "@/data/assessment";
+import { OCCUPATIONS } from "@/data/occupations";
+import { matchOccupationsByName } from "@/lib/data/search";
 import type { DimensionId } from "@/types/assessment";
 
 const clamp = (x: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, x));
@@ -43,8 +37,7 @@ interface Acc {
 }
 
 function emptyAcc(): Acc {
-  const rec = <K extends string, V>(keys: readonly K[], f: () => V) =>
-    Object.fromEntries(keys.map((k) => [k, f()])) as Record<K, V>;
+  const rec = <K extends string, V>(keys: readonly K[], f: () => V) => Object.fromEntries(keys.map((k) => [k, f()])) as Record<K, V>;
   return {
     interests: rec(INTEREST_IDS, () => ({ raw: 0, n: 0, ev: [] as Evidence[] })),
     env: rec(ENV_IDS, () => ({ obs: [] as { v: number; w: number }[], essential: false, ev: [] as Evidence[] })),
@@ -188,12 +181,16 @@ function applyOnboarding(acc: Acc, ob: Onboarding) {
   if (ob.autonomy === "autonome") applyEffect(acc, { k: "motivation", id: "autonomie", w: 1.5 }, qid, "Grande autonomie souhaitée");
   if (ob.autonomy === "encadre") applyEffect(acc, { k: "motivation", id: "stabilite", w: 1 }, qid, "Cadre clair souhaité");
   if (ob.travelOk === "non") applyEffect(acc, { k: "aversion", id: "frequent-travel", level: 3 }, qid, "Pas de déplacements");
-  if (ob.travelOk === "occasionnel") applyEffect(acc, { k: "aversion", id: "frequent-travel", level: 1 }, qid, "Déplacements occasionnels seulement");
-  if (ob.stableRequired === "oui") applyEffect(acc, { k: "aversion", id: "unstable-employment", level: 3 }, qid, "Emploi stable indispensable");
+  if (ob.travelOk === "occasionnel")
+    applyEffect(acc, { k: "aversion", id: "frequent-travel", level: 1 }, qid, "Déplacements occasionnels seulement");
+  if (ob.stableRequired === "oui")
+    applyEffect(acc, { k: "aversion", id: "unstable-employment", level: 3 }, qid, "Emploi stable indispensable");
   if (ob.seasonalOk === "oui") applyEffect(acc, { k: "trait", id: "seasonalOk", v: 0.9 }, qid, "");
-  if (ob.seasonalOk === "non") applyEffect(acc, { k: "aversion", id: "unstable-employment", level: 2 }, qid, "Travail saisonnier ou temporaire refusé");
+  if (ob.seasonalOk === "non")
+    applyEffect(acc, { k: "aversion", id: "unstable-employment", level: 2 }, qid, "Travail saisonnier ou temporaire refusé");
   if (ob.training === "aucune") applyEffect(acc, { k: "aversion", id: "long-training", level: 3 }, qid, "Aucune formation supplémentaire");
-  else if (ob.training === "jours" || ob.training === "mois") applyEffect(acc, { k: "aversion", id: "long-training", level: 2 }, qid, "Formation courte seulement");
+  else if (ob.training === "jours" || ob.training === "mois")
+    applyEffect(acc, { k: "aversion", id: "long-training", level: 2 }, qid, "Formation courte seulement");
   else if (ob.training === "longue" || ob.training === "1-2ans") applyEffect(acc, { k: "trait", id: "retrain", v: 0.9 }, qid, "");
 }
 
@@ -226,8 +223,14 @@ export function buildProfile(onboarding: Onboarding, answers: Answers, asked?: s
 
   const order = (asked ?? Object.keys(answers)).filter((id) => id in answers);
   const dimCount: Record<DimensionId, number> = {
-    interets: 0, environnement: 0, motivations: 0, competences: 0,
-    quotidien: 0, transition: 0, loisirs: 0, aversions: 0,
+    interets: 0,
+    environnement: 0,
+    motivations: 0,
+    competences: 0,
+    quotidien: 0,
+    transition: 0,
+    loisirs: 0,
+    aversions: 0,
   };
   let answeredCount = 0;
   let skippedCount = 0;
@@ -293,7 +296,13 @@ function finalize(
   const motivations = Object.fromEntries(
     MOTIVATION_IDS.map((id) => {
       const a = acc.motivations[id];
-      const st: MotivationState = { raw: a.raw, norm: clamp(a.raw / 5), n: a.n, essential: a.essential, evidence: [...a.ev].sort((x, y) => y.w - x.w) };
+      const st: MotivationState = {
+        raw: a.raw,
+        norm: clamp(a.raw / 5),
+        n: a.n,
+        essential: a.essential,
+        evidence: [...a.ev].sort((x, y) => y.w - x.w),
+      };
       return [id, st];
     }),
   ) as Profile["motivations"];
@@ -343,8 +352,11 @@ function finalize(
 
   const level = EDUCATION_LEVELS.find((l) => l.id === ob.educationLevel);
   const field = ob.studyField ? STUDY_FIELD_BY_ID[ob.studyField] : undefined;
-  const sectorIds = [...new Set([...(field?.sectorIds ?? []), ...(ob.experienceSectorIds ?? [])])];
-  const familyIds = [...(field?.familyIds ?? [])];
+  // Les métiers saisis en texte libre sont rapprochés des fiches pour enrichir le parcours (secteurs, familles).
+  const typed = [ob.currentOccupation, ob.previousOccupation].filter((x): x is string => !!x?.trim());
+  const matched = typed.flatMap((x) => matchOccupationsByName(x, OCCUPATIONS));
+  const sectorIds = [...new Set([...(field?.sectorIds ?? []), ...(ob.experienceSectorIds ?? []), ...matched.flatMap((m) => m.sectorIds)])];
+  const familyIds = [...new Set([...(field?.familyIds ?? []), ...matched.map((m) => m.familyId)])];
   const hasBackground = sectorIds.length > 0 || !!ob.currentOccupation?.trim() || !!ob.previousOccupation?.trim();
 
   const rel = ob.fieldRelation ?? [];
@@ -357,21 +369,42 @@ function finalize(
   }
 
   const profile: Profile = {
-    interests, env, motivations, skills, aversions, traits, families,
+    interests,
+    env,
+    motivations,
+    skills,
+    aversions,
+    traits,
+    families,
     hobbies: acc.hobbies,
-    freeText: acc.freeText,
-    education: { level: ob.educationLevel, levelRank: level?.rank, field: ob.studyField === "custom" ? ob.studyFieldCustom : field?.label },
-    background: { sectorIds, familyIds, hasBackground },
+    freeText: [...acc.freeText, ...(ob.currentStudy?.trim() ? [ob.currentStudy.trim()] : [])],
+    education: {
+      level: ob.educationLevel,
+      levelRank: level?.rank,
+      field: ob.studyField === "custom" ? ob.studyFieldCustom : field?.label,
+      current: ob.currentStudy?.trim() || undefined,
+    },
+    background: { sectorIds, familyIds, hasBackground, matchedOccupationIds: matched.map((m) => m.id) },
     transition: {
       maxTrainingMonths,
+      urgent: ob.jobNow === "oui",
       wantsToLeaveField,
       wantsToStay,
       exploreBroadly: rel.includes("explorer") || rel.length === 0,
       needIncome: ob.needIncomeDuringTraining === "oui",
       entryLevelOk: ob.entryLevelOk === "oui" ? true : ob.entryLevelOk === "non" ? false : null,
       stableRequired: ob.stableRequired === "oui" || (traits.stabilityNeed ?? 0) >= 0.85,
-      seasonalOk: ob.seasonalOk === "oui" ? true : ob.seasonalOk === "non" ? false : traits.seasonalOk !== undefined ? traits.seasonalOk >= 0.6 : null,
-      relocation: ob.relocation ?? (traits.relocation !== undefined ? (traits.relocation >= 0.8 ? "oui" : traits.relocation >= 0.3 ? "region" : "non") : undefined),
+      seasonalOk:
+        ob.seasonalOk === "oui"
+          ? true
+          : ob.seasonalOk === "non"
+            ? false
+            : traits.seasonalOk !== undefined
+              ? traits.seasonalOk >= 0.6
+              : null,
+      relocation:
+        ob.relocation ??
+        (traits.relocation !== undefined ? (traits.relocation >= 0.8 ? "oui" : traits.relocation >= 0.3 ? "region" : "non") : undefined),
       salaryFloor: ob.salaryFloor,
       travelOk: ob.travelOk,
       licence: ob.licence,
@@ -420,7 +453,7 @@ export function detectContradictions(p: Profile, answers: Answers): Contradictio
       resolved: done("q-fu-training-length"),
     });
   }
-  if (top("aide", 0.5) && ((p.env.publicInteraction.pref ?? 4) <= 1 && p.env.publicInteraction.n > 0 || lvl("customer-contact") >= 2)) {
+  if (top("aide", 0.5) && (((p.env.publicInteraction.pref ?? 4) <= 1 && p.env.publicInteraction.n > 0) || lvl("customer-contact") >= 2)) {
     out.push({
       id: "c-client",
       title: "Goût pour l’aide, mais contact avec le public peu souhaité",
@@ -429,7 +462,11 @@ export function detectContradictions(p: Profile, answers: Answers): Contradictio
       resolved: done("q-fu-client-relation"),
     });
   }
-  if ((p.env.fieldwork.pref ?? 0) >= 3 && p.env.fieldwork.n > 0 && ((p.env.physicalActivity.pref ?? 4) <= 1.5 && p.env.physicalActivity.n > 0 || lvl("heavy-physical") >= 2)) {
+  if (
+    (p.env.fieldwork.pref ?? 0) >= 3 &&
+    p.env.fieldwork.n > 0 &&
+    (((p.env.physicalActivity.pref ?? 4) <= 1.5 && p.env.physicalActivity.n > 0) || lvl("heavy-physical") >= 2)
+  ) {
     out.push({
       id: "c-outdoor-physical",
       title: "Envie de terrain, mais peu d’effort physique",

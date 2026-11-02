@@ -43,24 +43,49 @@ export function createStore(storage: StorageLike | null = browserStorage()): Sto
       const raw = storage.getItem(key);
       return raw ? JSON.parse(raw) : null;
     } catch {
-      try { storage.removeItem(key); } catch { /* ignoré */ }
+      try {
+        storage.removeItem(key);
+      } catch {
+        /* ignoré */
+      }
       return null; // JSON corrompu
     }
   };
   const write = (key: string, value: unknown): boolean => {
     if (!storage) return false;
-    try { storage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
+    try {
+      storage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch {
+      return false;
+    }
   };
   return {
     loadSession: () => migrateSession(read(KEYS.session)),
     saveSession: (s) => write(KEYS.session, { ...s, schemaVersion: SCHEMA_VERSION, updatedAt: new Date().toISOString() }),
-    resetSession: () => { try { storage?.removeItem(KEYS.session); } catch { /* ignoré */ } },
+    resetSession: () => {
+      try {
+        storage?.removeItem(KEYS.session);
+      } catch {
+        /* ignoré */
+      }
+    },
     loadList: (key) => {
       const v = read(KEYS[key]);
       return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
     },
-    saveList: (key, ids) => { write(KEYS[key], [...new Set(ids)]); },
-    eraseAll: () => { for (const k of Object.values(KEYS)) { try { storage?.removeItem(k); } catch { /* ignoré */ } } },
+    saveList: (key, ids) => {
+      write(KEYS[key], [...new Set(ids)]);
+    },
+    eraseAll: () => {
+      for (const k of Object.values(KEYS)) {
+        try {
+          storage?.removeItem(k);
+        } catch {
+          /* ignoré */
+        }
+      }
+    },
   };
 }
 

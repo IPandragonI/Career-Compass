@@ -26,7 +26,10 @@ export function useSession() {
 
   useEffect(() => {
     if (!hydrated) return;
-    if (skipSave.current) { skipSave.current = false; return; }
+    if (skipSave.current) {
+      skipSave.current = false;
+      return;
+    }
     store.saveSession(session);
   }, [session, hydrated, store]);
 
@@ -57,23 +60,45 @@ const emit = () => listeners.forEach((l) => l());
 function subscribe(cb: () => void) {
   listeners.add(cb);
   window.addEventListener("storage", cb);
-  return () => { listeners.delete(cb); window.removeEventListener("storage", cb); };
+  return () => {
+    listeners.delete(cb);
+    window.removeEventListener("storage", cb);
+  };
 }
 
 function useStoredList(key: "favorites" | "compare") {
   const raw = useSyncExternalStore(
     subscribe,
-    () => { try { return window.localStorage.getItem(KEYS[key]) ?? "[]"; } catch { return "[]"; } },
+    () => {
+      try {
+        return window.localStorage.getItem(KEYS[key]) ?? "[]";
+      } catch {
+        return "[]";
+      }
+    },
     () => "[]",
   );
-  const ids = useMemo<string[]>(() => { try { const v = JSON.parse(raw); return Array.isArray(v) ? v.filter((x) => typeof x === "string") : []; } catch { return []; } }, [raw]);
-  const toggle = useCallback((id: string, max = 50) => {
-    const store = createStore();
-    const cur = store.loadList(key);
-    store.saveList(key, cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id].slice(-max));
+  const ids = useMemo<string[]>(() => {
+    try {
+      const v = JSON.parse(raw);
+      return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+    } catch {
+      return [];
+    }
+  }, [raw]);
+  const toggle = useCallback(
+    (id: string, max = 50) => {
+      const store = createStore();
+      const cur = store.loadList(key);
+      store.saveList(key, cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id].slice(-max));
+      emit();
+    },
+    [key],
+  );
+  const clear = useCallback(() => {
+    createStore().saveList(key, []);
     emit();
   }, [key]);
-  const clear = useCallback(() => { createStore().saveList(key, []); emit(); }, [key]);
   return { ids, toggle, clear };
 }
 
@@ -86,6 +111,8 @@ export const useCompare = () => {
 /** Résultats mis en cache : renvoie l’identifiant des catégories pour le filtre de l’explorateur. */
 export function useSavedSession() {
   const [s, setS] = useState<StoredSession | null>(null);
-  useEffect(() => { setS(createStore().loadSession()); }, []);
+  useEffect(() => {
+    setS(createStore().loadSession());
+  }, []);
   return s;
 }

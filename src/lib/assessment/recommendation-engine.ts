@@ -4,7 +4,16 @@ import type { FitLabel, Recommendation, Results, TransitionCategory } from "@/ty
 import type { FamilyId } from "@/data/taxonomy";
 import { ENV_IDS } from "@/data/taxonomy";
 import { OCCUPATIONS, similarity } from "@/data/occupations";
-import { buildDirection, buildNextSteps, buildReasons, buildSummary, buildToInvestigate, buildWarnings, evidenceConfidence } from "./explanation-builder";
+import {
+  buildDirection,
+  buildNextSteps,
+  buildReasons,
+  buildSummary,
+  buildToInvestigate,
+  buildWarnings,
+  evidenceConfidence,
+} from "./explanation-builder";
+import { t } from "@/lib/i18n/messages";
 import { classifyTransition, DEFAULT_WEIGHTS, scoreOccupation, type OccupationScore } from "./scoring";
 
 export interface EngineOptions {
@@ -22,7 +31,13 @@ interface Scored {
   adjusted: number;
 }
 
-const wordsOf = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 4);
+const wordsOf = (t: string) =>
+  t
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length > 4);
 
 function fitLabel(composite: number, hasStrongWarning: boolean): FitLabel {
   if (hasStrongWarning) return "Piste possible sous certaines conditions";
@@ -60,7 +75,9 @@ export function recommend(profile: Profile, options: EngineOptions = {}, occupat
       /* fiche inutilisable : ignorée */
     }
   }
-  const eligible = all.filter((x) => !x.s.dealBreakers.excluded).sort((a, b) => b.adjusted - a.adjusted || a.s.occupation.id.localeCompare(b.s.occupation.id));
+  const eligible = all
+    .filter((x) => !x.s.dealBreakers.excluded)
+    .sort((a, b) => b.adjusted - a.adjusted || a.s.occupation.id.localeCompare(b.s.occupation.id));
   const excludedCount = all.length - eligible.length;
 
   const toRec = (x: Scored): Recommendation => {
@@ -69,7 +86,10 @@ export function recommend(profile: Profile, options: EngineOptions = {}, occupat
       occupationId: x.s.occupation.id,
       composite: x.adjusted,
       dimensions: x.s.dimensions,
-      fit: fitLabel(x.adjusted, warnings.some((w) => w.severity === "forte")),
+      fit: fitLabel(
+        x.adjusted,
+        warnings.some((w) => w.severity === "forte"),
+      ),
       category: x.category,
       categoryReason: x.categoryReason,
       reasons: buildReasons(profile, x.s, x.categoryReason),
@@ -97,8 +117,10 @@ export function recommend(profile: Profile, options: EngineOptions = {}, occupat
   }
   const famOccs = (id: FamilyId) => byFamily.get(id)!.map((x) => x.s.occupation);
   const famSimilarity = (a: FamilyId, b: FamilyId) => {
-    const oa = famOccs(a), ob = famOccs(b);
-    const sa = new Set(oa.flatMap((o) => o.sectorIds)), sb = new Set(ob.flatMap((o) => o.sectorIds));
+    const oa = famOccs(a),
+      ob = famOccs(b);
+    const sa = new Set(oa.flatMap((o) => o.sectorIds)),
+      sb = new Set(ob.flatMap((o) => o.sectorIds));
     const inter = [...sa].filter((x) => sb.has(x)).length;
     const jac = inter / Math.max(1, sa.size + sb.size - inter);
     return 0.5 * cosineish(envVector(oa), envVector(ob)) + 0.5 * jac;
@@ -127,7 +149,11 @@ export function recommend(profile: Profile, options: EngineOptions = {}, occupat
   // 5. Choix des métiers : suppression des quasi-doublons, plafond par direction.
   const chosen: Scored[] = [];
   const isDup = (c: Scored) =>
-    chosen.some((x) => (x.s.occupation.dedupeGroup && x.s.occupation.dedupeGroup === c.s.occupation.dedupeGroup) || similarity(x.s.occupation, c.s.occupation) >= dupThreshold + 0.2);
+    chosen.some(
+      (x) =>
+        (x.s.occupation.dedupeGroup && x.s.occupation.dedupeGroup === c.s.occupation.dedupeGroup) ||
+        similarity(x.s.occupation, c.s.occupation) >= dupThreshold + 0.2,
+    );
   const perDirection = new Map<FamilyId, Scored[]>();
   for (const fid of directionsIds) {
     for (const c of byFamily.get(fid)!) {
@@ -167,11 +193,22 @@ export function recommend(profile: Profile, options: EngineOptions = {}, occupat
   const discoveries: Scored[] = [];
   const usedFamilies = new Set<string>();
   const pool = eligible
-    .filter((x) => !finalChosen.includes(x) && (x.category === "nouvelle" || x.category === "adjacent") && x.adjusted >= median * 0.9 && !x.s.dealBreakers.warnings.some((w) => w.severity === "forte"))
+    .filter(
+      (x) =>
+        !finalChosen.includes(x) &&
+        (x.category === "nouvelle" || x.category === "adjacent") &&
+        x.adjusted >= median * 0.9 &&
+        !x.s.dealBreakers.warnings.some((w) => w.severity === "forte"),
+    )
     .sort((a, b) => b.adjusted * (1 - 0.5 * obviousness(b)) - a.adjusted * (1 - 0.5 * obviousness(a)));
   for (const c of pool) {
     if (discoveries.length >= 3) break;
-    if (usedFamilies.has(c.s.occupation.familyId) || isDup(c) || discoveries.some((d) => similarity(d.s.occupation, c.s.occupation) >= dupThreshold)) continue;
+    if (
+      usedFamilies.has(c.s.occupation.familyId) ||
+      isDup(c) ||
+      discoveries.some((d) => similarity(d.s.occupation, c.s.occupation) >= dupThreshold)
+    )
+      continue;
     discoveries.push(c);
     usedFamilies.add(c.s.occupation.familyId);
   }
@@ -185,11 +222,9 @@ export function recommend(profile: Profile, options: EngineOptions = {}, occupat
     })
     .filter((d): d is NonNullable<typeof d> => d !== null);
 
-  const notes = [
-    "Ces résultats sont exploratoires : ils sont calculés localement à partir de vos réponses et d’un jeu de données éditorial, sans validation scientifique.",
-  ];
-  if (profile.answeredCount < 15) notes.push("Vous avez répondu à peu de questions : les pistes sont larges et peu fiables. Compléter le bilan les améliorera.");
-  if (excludedCount) notes.push(`${excludedCount} métier(s) ont été écartés car incompatibles avec ce que vous avez indiqué fortement vouloir éviter.`);
+  const notes: string[] = [t.notes.exploratory];
+  if (profile.answeredCount < 15) notes.push(t.notes.fewAnswers);
+  if (excludedCount) notes.push(t.notes.excluded(excludedCount));
 
   return {
     generatedAt: new Date().toISOString(),

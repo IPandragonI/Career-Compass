@@ -9,7 +9,7 @@
   --color-brand: #0f5c57;
   --color-brand-dark: #0a3f3c;
   --color-brand-soft: #e3f0ee;
-  --color-accent: #b4591a;
+  --color-accent: #9a4510;
   --color-accent-soft: #fbeedd;
   --color-warn: #8a4b00;
   --color-warn-soft: #fff3d6;
@@ -32,7 +32,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   font-family: var(--font-serif);
   letter-spacing: -0.01em;
   line-height: 1.2;
@@ -54,19 +56,55 @@ h1, h2, h3 {
   border-radius: 8px;
   z-index: 100;
 }
-.skip-link:focus { left: 0.5rem; }
+.skip-link:focus {
+  left: 0.5rem;
+}
 
 @keyframes slide-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
-.enter { animation: slide-in 0.28s ease-out both; }
+.enter {
+  animation: slide-in 0.28s ease-out both;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  *, *::before, *::after {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+    font-size: 11pt;
+  }
+  details > summary {
+    list-style: none;
+  }
+  article,
+  section,
+  li {
+    break-inside: avoid;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
   }
 }

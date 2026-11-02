@@ -88,25 +88,73 @@ export const CONSTRAINTS = [
 ] as const;
 
 export const FAMILIES = [
-  { id: "numerique-dev", label: "Développement et systèmes numériques", blurb: "Concevoir, faire fonctionner et sécuriser des logiciels et des infrastructures." },
-  { id: "data-geo", label: "Données, cartographie et information géographique", blurb: "Collecter, traiter et représenter des données, notamment spatiales." },
-  { id: "ingenierie", label: "Ingénierie et conception technique", blurb: "Concevoir et dimensionner des systèmes, des produits ou des ouvrages." },
-  { id: "industrie", label: "Production et qualité industrielles", blurb: "Fabriquer, piloter des moyens de production et garantir la qualité." },
-  { id: "maintenance", label: "Maintenance et interventions techniques", blurb: "Installer, diagnostiquer et réparer des équipements et des installations." },
+  {
+    id: "numerique-dev",
+    label: "Développement et systèmes numériques",
+    blurb: "Concevoir, faire fonctionner et sécuriser des logiciels et des infrastructures.",
+  },
+  {
+    id: "data-geo",
+    label: "Données, cartographie et information géographique",
+    blurb: "Collecter, traiter et représenter des données, notamment spatiales.",
+  },
+  {
+    id: "ingenierie",
+    label: "Ingénierie et conception technique",
+    blurb: "Concevoir et dimensionner des systèmes, des produits ou des ouvrages.",
+  },
+  {
+    id: "industrie",
+    label: "Production et qualité industrielles",
+    blurb: "Fabriquer, piloter des moyens de production et garantir la qualité.",
+  },
+  {
+    id: "maintenance",
+    label: "Maintenance et interventions techniques",
+    blurb: "Installer, diagnostiquer et réparer des équipements et des installations.",
+  },
   { id: "energie", label: "Énergie et transition", blurb: "Produire, installer et optimiser des énergies, notamment renouvelables." },
-  { id: "environnement", label: "Environnement, nature et biodiversité", blurb: "Observer, protéger et gérer les milieux naturels et le vivant." },
-  { id: "agriculture", label: "Agriculture, forêt et gestion des espaces", blurb: "Cultiver, élever, entretenir et valoriser les espaces ruraux et verts." },
-  { id: "construction", label: "Construction, bâtiment et infrastructures", blurb: "Bâtir, rénover et entretenir des ouvrages et des réseaux." },
-  { id: "transport", label: "Transport, mobilité et logistique", blurb: "Acheminer personnes et marchandises, gérer les flux et les stocks." },
+  {
+    id: "environnement",
+    label: "Environnement, nature et biodiversité",
+    blurb: "Observer, protéger et gérer les milieux naturels et le vivant.",
+  },
+  {
+    id: "agriculture",
+    label: "Agriculture, forêt et gestion des espaces",
+    blurb: "Cultiver, élever, entretenir et valoriser les espaces ruraux et verts.",
+  },
+  {
+    id: "construction",
+    label: "Construction, bâtiment et infrastructures",
+    blurb: "Bâtir, rénover et entretenir des ouvrages et des réseaux.",
+  },
+  {
+    id: "transport",
+    label: "Transport, mobilité et logistique",
+    blurb: "Acheminer personnes et marchandises, gérer les flux et les stocks.",
+  },
   { id: "sante", label: "Santé et soin", blurb: "Prévenir, soigner et accompagner la santé des personnes." },
-  { id: "social", label: "Accompagnement social et aide à la personne", blurb: "Soutenir des personnes dans leur vie quotidienne et leur insertion." },
+  {
+    id: "social",
+    label: "Accompagnement social et aide à la personne",
+    blurb: "Soutenir des personnes dans leur vie quotidienne et leur insertion.",
+  },
   { id: "education", label: "Éducation, formation et transmission", blurb: "Transmettre des savoirs et accompagner des apprentissages." },
   { id: "recherche", label: "Recherche, laboratoire et mesure", blurb: "Produire des connaissances, analyser et mesurer avec rigueur." },
   { id: "securite", label: "Sécurité, prévention et secours", blurb: "Protéger les personnes, les biens et prévenir les risques." },
-  { id: "gestion", label: "Organisation, gestion et coordination", blurb: "Planifier, coordonner des équipes, des projets et des ressources." },
+  {
+    id: "gestion",
+    label: "Organisation, gestion et coordination",
+    blurb: "Planifier, coordonner des équipes, des projets et des ressources.",
+  },
   { id: "finance", label: "Finance, assurance et droit", blurb: "Gérer des risques, des comptes, des contrats et des règles." },
   { id: "commerce", label: "Commerce, vente et marketing", blurb: "Comprendre un marché, proposer et vendre des produits ou services." },
-  { id: "communication", label: "Communication, médias et contenus", blurb: "Informer, raconter et produire des contenus pour des publics." },
+  {
+    id: "communication",
+    label: "Communication, médias et contenus",
+    blurb: "Informer, raconter et produire des contenus pour des publics.",
+  },
   { id: "creation", label: "Création, design et arts visuels", blurb: "Imaginer et réaliser des objets, images et expériences." },
   { id: "artisanat", label: "Artisanat et métiers d’art", blurb: "Façonner, restaurer et transformer des matières avec un savoir-faire." },
   { id: "tourisme", label: "Tourisme, hôtellerie et loisirs de plein air", blurb: "Accueillir, guider et faire vivre des expériences." },
@@ -123,8 +171,7 @@ export type ConstraintId = (typeof CONSTRAINTS)[number]["id"];
 export type FamilyId = (typeof FAMILIES)[number]["id"];
 
 type Labeled = { id: string; label: string };
-const index = <T extends Labeled>(xs: readonly T[]) =>
-  Object.fromEntries(xs.map((x) => [x.id, x])) as Record<T["id"], T>;
+const index = <T extends Labeled>(xs: readonly T[]) => Object.fromEntries(xs.map((x) => [x.id, x])) as Record<T["id"], T>;
 
 export const INTEREST_BY_ID = index(INTERESTS);
 export const ENV_BY_ID = index(ENV_DIMS);

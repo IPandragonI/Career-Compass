@@ -3,6 +3,7 @@ import type { Onboarding, Profile } from "@/types/profile";
 import { ALL_QUESTIONS, QUESTION_BY_ID } from "@/data/assessment";
 import { CONSTRAINT_BY_ID, ENV_BY_ID, INTEREST_BY_ID, MOTIVATION_BY_ID, SKILL_BY_ID, FAMILY_BY_ID } from "@/data/taxonomy";
 import { buildProfile, COVERAGE_TARGET } from "./profile-builder";
+import { t } from "@/lib/i18n/messages";
 
 export interface SelectionConfig {
   /** Nombre minimal de questions avant d’envisager l’arrêt par couverture. */
@@ -97,11 +98,9 @@ export interface QuestionScore {
   topKeys: string[];
 }
 
-export function scoreQuestion(q: Question, ctx: QuestionContext, config: SelectionConfig): QuestionScore {
+export function scoreQuestion(q: Question, ctx: QuestionContext, _config: SelectionConfig): QuestionScore {
   const p = ctx.profile;
-  const needs = q.informs
-    .map((k) => ({ k, n: need(k, p, ctx.answers) }))
-    .sort((a, b) => b.n - a.n);
+  const needs = q.informs.map((k) => ({ k, n: need(k, p, ctx.answers) })).sort((a, b) => b.n - a.n);
   let gain = needs.slice(0, 8).reduce((s, x) => s + x.n, 0);
 
   // Contradiction à lever : forte valeur d’information.
@@ -128,7 +127,14 @@ export function scoreQuestion(q: Question, ctx: QuestionContext, config: Selecti
   // Prise en compte du temps : à gain égal, une question courte est préférée.
   gain /= Math.sqrt(q.seconds / 25);
 
-  return { question: q, gain, topKeys: needs.filter((x) => x.n > 0).slice(0, 3).map((x) => x.k) };
+  return {
+    question: q,
+    gain,
+    topKeys: needs
+      .filter((x) => x.n > 0)
+      .slice(0, 3)
+      .map((x) => x.k),
+  };
 }
 
 export function elapsedEstimate(asked: string[], answers: Answers): number {
@@ -159,9 +165,10 @@ export function selectNext(
   const elapsed = elapsedEstimate(asked, answers);
   const mand = mandatoryDone(answers);
 
-  if (asked.length >= config.maxQuestions && mand) return { question: null, reason: "Plafond de questions atteint.", done: true, doneReason: "plafond" };
+  if (asked.length >= config.maxQuestions && mand)
+    return { question: null, reason: t.selection.ceiling, done: true, doneReason: "plafond" };
   if (elapsed >= config.timeBudgetSec && mand && asked.length >= config.minQuestions - 6) {
-    return { question: null, reason: "Budget de temps atteint.", done: true, doneReason: "budget-temps" };
+    return { question: null, reason: t.selection.timeBudget, done: true, doneReason: "budget-temps" };
   }
 
   const candidates = ALL_QUESTIONS.filter((q) => {
@@ -172,22 +179,18 @@ export function selectNext(
     return true;
   });
 
-  if (candidates.length === 0) return { question: null, reason: "Plus aucune question pertinente.", done: true, doneReason: "epuise" };
+  if (candidates.length === 0) return { question: null, reason: t.selection.none, done: true, doneReason: "epuise" };
 
-  const scored = candidates
-    .map((q, idx) => ({ ...scoreQuestion(q, ctx, config), idx }))
-    .sort((a, b) => b.gain - a.gain || a.idx - b.idx);
+  const scored = candidates.map((q, idx) => ({ ...scoreQuestion(q, ctx, config), idx })).sort((a, b) => b.gain - a.gain || a.idx - b.idx);
   const best = scored[0]!;
 
   if (mand && asked.length >= config.minQuestions && dimensionsSatisfied(ctx.profile) && best.gain < config.gainEpsilon * 4) {
-    return { question: null, reason: "Les dimensions essentielles sont suffisamment documentées.", done: true, doneReason: "couverture" };
+    return { question: null, reason: t.selection.covered, done: true, doneReason: "couverture" };
   }
   if (mand && asked.length >= config.minQuestions && best.gain < config.gainEpsilon) {
-    return { question: null, reason: "Les questions restantes apporteraient peu d’information nouvelle.", done: true, doneReason: "couverture" };
+    return { question: null, reason: t.selection.lowGain, done: true, doneReason: "couverture" };
   }
 
-  const why = best.topKeys.length
-    ? `Cette question précise : ${best.topKeys.map(keyLabel).map((s) => s.toLowerCase()).join(", ")}.`
-    : "Cette question complète votre profil.";
+  const why = best.topKeys.length ? t.selection.informs(best.topKeys.map(keyLabel).map((s) => s.toLowerCase())) : t.selection.generic;
   return { question: best.question, reason: best.question.why ?? why, done: false };
 }

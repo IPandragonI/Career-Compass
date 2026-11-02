@@ -1,7 +1,7 @@
 import type { Question, QuestionContext } from "@/types/assessment";
 import type { InterestId } from "@/data/taxonomy";
 import { CONSTRAINT_BY_ID, FAMILIES } from "@/data/taxonomy";
-import { av, e, fam, followup, hobby, i, m, opt, ss } from "./helpers";
+import { av, e, fam, followup, hobby, i, m, opt, ss, tr } from "./helpers";
 import { HOBBY_OPTIONS } from "./questions-core";
 
 /**
@@ -18,10 +18,6 @@ function topInterests(ctx: QuestionContext, n = 3): InterestId[] {
 }
 const isTop = (ctx: QuestionContext, id: InterestId, n = 3, min = 0.4) =>
   topInterests(ctx, n).includes(id) && ctx.profile.interests[id].norm >= min;
-const hasAnswer = (ctx: QuestionContext, qid: string) => {
-  const a = ctx.answers[qid];
-  return !!a && a.kind !== "skipped";
-};
 const hobbyIds = (ctx: QuestionContext): string[] => {
   const a = ctx.answers["q-hobbies"];
   return a && a.kind === "multi" ? a.values.filter((v) => v !== "none") : [];
@@ -29,7 +25,7 @@ const hobbyIds = (ctx: QuestionContext): string[] => {
 
 /** Chaque spécialisation d’intérêt reste prudente si la personne veut quitter son secteur. */
 
-const hobbyReasons = (hobbyLabel: string) => [
+const hobbyReasons = () => [
   opt("physical", "Me dépenser physiquement", [i("operations", 0.8), e("physicalActivity", 3, 0.7)]),
   opt("outdoors", "Être dehors, dans un cadre naturel", [i("nature", 1.5), e("fieldwork", 4, 0.7)]),
   opt("understand", "Comprendre comment les choses fonctionnent", [i("analyse", 1.5), ss("technique", 1)]),
@@ -39,7 +35,6 @@ const hobbyReasons = (hobbyLabel: string) => [
   opt("alone", "Être au calme, seul·e, à mon rythme", [e("teamwork", 0.5, 0.7), m("autonomie", 1.5)]),
   opt("explore", "Explorer, découvrir, voyager", [m("voyage", 1.5), m("variete", 1)]),
   opt("tools", "Maîtriser un équipement ou un outil", [i("machines", 1.2), i("manuel", 0.8)]),
-  ...(hobbyLabel ? [] : []),
 ];
 
 function hobbyWhy(index: number): Question {
@@ -50,7 +45,20 @@ function hobbyWhy(index: number): Question {
     topic: "loisir-pourquoi",
     maxSelect: 2,
     priority: 1,
-    informs: ["interest:nature", "interest:analyse", "interest:creation", "interest:aide", "interest:machines", "interest:manuel", "env:fieldwork", "env:physicalActivity", "motivation:defi", "motivation:autonomie", "motivation:voyage", "motivation:equipe"],
+    informs: [
+      "interest:nature",
+      "interest:analyse",
+      "interest:creation",
+      "interest:aide",
+      "interest:machines",
+      "interest:manuel",
+      "env:fieldwork",
+      "env:physicalActivity",
+      "motivation:defi",
+      "motivation:autonomie",
+      "motivation:voyage",
+      "motivation:equipe",
+    ],
     buildPrompt: (ctx) => {
       const id = hobbyIds(ctx)[index];
       const label = HOBBY_OPTIONS.find((h) => h.id === id)?.label ?? "ce loisir";
@@ -59,7 +67,7 @@ function hobbyWhy(index: number): Question {
     prompt: "Dans ce loisir, qu’est-ce qui vous plaît vraiment ?",
     help: "Ce que vous aimez dans une activité n’est pas forcément le métier qui lui correspond : c’est une piste à tester.",
     when: (ctx) => hobbyIds(ctx).length > index,
-    buildOptions: (ctx) => hobbyReasons(hobbyIds(ctx)[index] ?? "").map((o) => ({ ...o, effects: [...o.effects, hobby(`${hobbyIds(ctx)[index]}:${o.id}`)] })),
+    buildOptions: (ctx) => hobbyReasons().map((o) => ({ ...o, effects: [...o.effects, hobby(`${hobbyIds(ctx)[index]}:${o.id}`)] })),
   });
 }
 
@@ -73,14 +81,29 @@ export const QUESTIONS_FOLLOWUP: Question[] = [
     maxSelect: 2,
     prompt: "Dans le travail technique et pratique, qu’est-ce qui vous attire le plus ? (deux choix au maximum)",
     why: "Vous avez montré un goût pour le travail pratique : précisons de quel type.",
-    when: (ctx) => (isTop(ctx, "manuel") || isTop(ctx, "machines") || isTop(ctx, "operations")),
+    when: (ctx) => isTop(ctx, "manuel") || isTop(ctx, "machines") || isTop(ctx, "operations"),
     options: [
-      opt("mecanique", "Systèmes mécaniques : moteurs, transmissions, machines", [fam("maintenance", 2), fam("industrie", 1), fam("transport", 1), i("machines", 1)]),
-      opt("electronique", "Électronique et instrumentation", [fam("recherche", 1), fam("maintenance", 1.5), fam("ingenierie", 1.5), i("donnees", 1)]),
+      opt("mecanique", "Systèmes mécaniques : moteurs, transmissions, machines", [
+        fam("maintenance", 2),
+        fam("industrie", 1),
+        fam("transport", 1),
+        i("machines", 1),
+      ]),
+      opt("electronique", "Électronique et instrumentation", [
+        fam("recherche", 1),
+        fam("maintenance", 1.5),
+        fam("ingenierie", 1.5),
+        i("donnees", 1),
+      ]),
       opt("construction", "Construction et installation", [fam("construction", 2.5), fam("energie", 1), i("manuel", 1)]),
       opt("labo", "Laboratoire et mesure", [fam("recherche", 2.5), i("donnees", 1.5), i("recherche", 1)]),
       opt("industriel", "Maintenance et exploitation industrielle", [fam("maintenance", 2), fam("industrie", 2), i("operations", 1)]),
-      opt("terrain", "Équipements de terrain et interventions techniques", [fam("maintenance", 1.5), fam("energie", 1.5), fam("environnement", 1), e("fieldwork", 3.5, 1)]),
+      opt("terrain", "Équipements de terrain et interventions techniques", [
+        fam("maintenance", 1.5),
+        fam("energie", 1.5),
+        fam("environnement", 1),
+        e("fieldwork", 3.5, 1),
+      ]),
     ],
   }),
   followup({
@@ -90,11 +113,16 @@ export const QUESTIONS_FOLLOWUP: Question[] = [
     topic: "fu-numerique",
     maxSelect: 2,
     prompt: "Dans le numérique, qu’est-ce qui vous attire le plus ? (deux choix au maximum)",
-    when: (ctx) => isTop(ctx, "numerique") && !(ctx.profile.transition.wantsToLeaveField && ctx.profile.background.sectorIds.includes("numerique")),
+    when: (ctx) =>
+      isTop(ctx, "numerique") && !(ctx.profile.transition.wantsToLeaveField && ctx.profile.background.sectorIds.includes("numerique")),
     options: [
       opt("dev", "Développer des logiciels ou des applications", [fam("numerique-dev", 2.5), i("creation", 1)]),
       opt("data", "Exploiter des données pour éclairer des décisions", [fam("data-geo", 2.5), fam("recherche", 1), i("donnees", 1)]),
-      opt("infra", "Faire fonctionner et sécuriser des systèmes et des réseaux", [fam("numerique-dev", 2), fam("maintenance", 1.5), i("machines", 1)]),
+      opt("infra", "Faire fonctionner et sécuriser des systèmes et des réseaux", [
+        fam("numerique-dev", 2),
+        fam("maintenance", 1.5),
+        i("machines", 1),
+      ]),
       opt("design", "Concevoir des interfaces et des expériences", [fam("creation", 2), fam("communication", 1)]),
       opt("support", "Dépanner et accompagner des utilisateurs", [fam("maintenance", 1.5), fam("social", 1), i("aide", 1)]),
       opt("project", "Piloter des projets numériques", [fam("gestion", 2.5), i("organisation", 1)]),
@@ -158,7 +186,7 @@ export const QUESTIONS_FOLLOWUP: Question[] = [
     topic: "fu-organisation",
     maxSelect: 2,
     prompt: "Quand vous organisez et coordonnez, de quoi vous occupez-vous de préférence ? (deux choix au maximum)",
-    when: (ctx) => (isTop(ctx, "organisation") || isTop(ctx, "gestion")),
+    when: (ctx) => isTop(ctx, "organisation") || isTop(ctx, "gestion"),
     options: [
       opt("sites", "Des chantiers ou des projets techniques", [fam("construction", 1.5), fam("ingenierie", 1.5), fam("gestion", 1.5)]),
       opt("flows", "Des flux de marchandises, de personnes ou de véhicules", [fam("transport", 3)]),
@@ -191,10 +219,15 @@ export const QUESTIONS_FOLLOWUP: Question[] = [
     topic: "fu-recherche",
     maxSelect: 2,
     prompt: "Quelle forme d’investigation vous attire le plus ? (deux choix au maximum)",
-    when: (ctx) => (isTop(ctx, "recherche") || isTop(ctx, "donnees") || isTop(ctx, "analyse")),
+    when: (ctx) => isTop(ctx, "recherche") || isTop(ctx, "donnees") || isTop(ctx, "analyse"),
     options: [
       opt("lab", "Expériences et analyses en laboratoire", [fam("recherche", 3)]),
-      opt("field", "Enquête et mesures sur le terrain", [fam("environnement", 1.5), fam("recherche", 1.5), fam("data-geo", 1.5), e("fieldwork", 3.5, 1)]),
+      opt("field", "Enquête et mesures sur le terrain", [
+        fam("environnement", 1.5),
+        fam("recherche", 1.5),
+        fam("data-geo", 1.5),
+        e("fieldwork", 3.5, 1),
+      ]),
       opt("data", "Modélisation et analyse de données", [fam("data-geo", 2.5), fam("finance", 1), fam("numerique-dev", 1)]),
       opt("quality", "Contrôle, qualité et conformité", [fam("industrie", 2), fam("securite", 1.5)]),
       opt("diagnose", "Diagnostic de pannes et d’anomalies", [fam("maintenance", 3)]),
@@ -247,9 +280,25 @@ export const QUESTIONS_FOLLOWUP: Question[] = [
       const flat = top.length < 2 || (top[0] ?? 0) - (top[2] ?? 0) < 0.25;
       return (ctx.profile.transition.exploreBroadly || flat) && ctx.asked.length >= 8;
     },
-    options: FAMILIES.filter((f) => ["environnement", "ingenierie", "data-geo", "sante", "education", "maintenance", "energie", "transport", "communication", "creation", "securite", "tourisme", "public", "agriculture", "recherche"].includes(f.id)).map((f) =>
-      opt(f.id, f.label, [fam(f.id, 2)], { hint: f.blurb }),
-    ),
+    options: FAMILIES.filter((f) =>
+      [
+        "environnement",
+        "ingenierie",
+        "data-geo",
+        "sante",
+        "education",
+        "maintenance",
+        "energie",
+        "transport",
+        "communication",
+        "creation",
+        "securite",
+        "tourisme",
+        "public",
+        "agriculture",
+        "recherche",
+      ].includes(f.id),
+    ).map((f) => opt(f.id, f.label, [fam(f.id, 2)], { hint: f.blurb })),
   }),
   followup({
     id: "q-fu-same-field-role",
@@ -264,7 +313,7 @@ export const QUESTIONS_FOLLOWUP: Question[] = [
       opt("more-people", "Plus de relation, de conseil ou de formation", [i("aide", 1.5), e("publicInteraction", 3, 1)]),
       opt("specialize", "Me spécialiser techniquement", [i("analyse", 1.5), m("defi", 1.5), e("technicalWork", 3.5, 1)]),
       opt("manage", "Encadrer ou piloter des projets", [i("organisation", 1.5), i("gestion", 1.5), m("responsabilite", 1.5)]),
-      opt("independent", "Gagner en autonomie ou travailler à mon compte", [m("autonomie", 2), tr_selfEmployed()]),
+      opt("independent", "Gagner en autonomie ou travailler à mon compte", [m("autonomie", 2), tr("selfEmployed", 0.8)]),
     ],
   }),
 
@@ -294,7 +343,11 @@ export const QUESTIONS_FOLLOWUP: Question[] = [
     prompt: "Vous souhaitez travailler dehors tout en évitant l’effort physique intense. Quel type d’activité extérieure vous irait ?",
     when: (ctx) => ctx.profile.contradictions.some((c) => c.id === "c-outdoor-physical"),
     options: [
-      opt("observe", "Observer, mesurer, inspecter sans porter de charges", [e("fieldwork", 3.5, 2.5), e("physicalActivity", 1.5, 2.5), i("recherche", 1)]),
+      opt("observe", "Observer, mesurer, inspecter sans porter de charges", [
+        e("fieldwork", 3.5, 2.5),
+        e("physicalActivity", 1.5, 2.5),
+        i("recherche", 1),
+      ]),
       opt("drive", "Piloter un véhicule ou un engin", [e("fieldwork", 3, 2), e("physicalActivity", 1.5, 2), i("machines", 1)]),
       opt("guide", "Accompagner et animer des groupes", [e("fieldwork", 3.5, 2), e("publicInteraction", 3.5, 1), i("aide", 1)]),
       opt("inside", "Finalement, plutôt en intérieur", [e("fieldwork", 1, 2.5)]),
@@ -309,9 +362,13 @@ export const QUESTIONS_FOLLOWUP: Question[] = [
     prompt: "Vous tenez à la stabilité tout en aimant la variété. Quelle combinaison vous correspond le mieux ?",
     when: (ctx) => ctx.profile.contradictions.some((c) => c.id === "c-stab-var"),
     options: [
-      opt("stable-contract-varied-tasks", "Un contrat stable avec des missions variées au sein d’une organisation", [m("stabilite", 2), m("variete", 2), tr_stab(0.8)]),
-      opt("stable-core", "Un cadre stable ; la variété peut venir de mes loisirs", [m("stabilite", 3), tr_stab(0.95)]),
-      opt("varied-core", "La variété d’abord, même avec moins de garanties", [m("variete", 3), tr_stab(0.2)]),
+      opt("stable-contract-varied-tasks", "Un contrat stable avec des missions variées au sein d’une organisation", [
+        m("stabilite", 2),
+        m("variete", 2),
+        tr("stabilityNeed", 0.8),
+      ]),
+      opt("stable-core", "Un cadre stable ; la variété peut venir de mes loisirs", [m("stabilite", 3), tr("stabilityNeed", 0.95)]),
+      opt("varied-core", "La variété d’abord, même avec moins de garanties", [m("variete", 3), tr("stabilityNeed", 0.2)]),
     ],
   }),
   followup({
@@ -324,8 +381,8 @@ export const QUESTIONS_FOLLOWUP: Question[] = [
     when: (ctx) => ctx.profile.contradictions.some((c) => c.id === "c-training"),
     options: [
       opt("short-only", "Une formation courte, quitte à avoir moins de choix de métiers", [av("long-training", 3)]),
-      opt("alternance", "Une formation longue si elle est en alternance et rémunérée", [av("long-training", 1), tr_retrain(0.6)]),
-      opt("passion", "Une formation longue si le métier me passionne vraiment", [av("long-training", 0), tr_retrain(0.9)]),
+      opt("alternance", "Une formation longue si elle est en alternance et rémunérée", [av("long-training", 1), tr("retrain", 0.6)]),
+      opt("passion", "Une formation longue si le métier me passionne vraiment", [av("long-training", 0), tr("retrain", 0.9)]),
     ],
   }),
   followup({
@@ -357,7 +414,11 @@ export const QUESTIONS_FOLLOWUP: Question[] = [
         .map(([id]) => id);
       return [
         ...strong.map((id) => opt(id, CONSTRAINT_BY_ID[id].label, [av(id, 3), ...strong.filter((s) => s !== id).map((s) => av(s, 2))])),
-        opt("none", "Aucun n’est absolu : je pondère selon le métier", strong.map((s) => av(s, 2))),
+        opt(
+          "none",
+          "Aucun n’est absolu : je pondère selon le métier",
+          strong.map((s) => av(s, 2)),
+        ),
       ];
     },
   }),
@@ -378,17 +439,3 @@ export const QUESTIONS_FOLLOWUP: Question[] = [
   hobbyWhy(0),
   hobbyWhy(1),
 ];
-
-/* Petits constructeurs locaux pour éviter des imports circulaires inutiles. */
-import type { Effect } from "@/types/assessment";
-function tr_selfEmployed(): Effect {
-  return { k: "trait", id: "selfEmployed", v: 0.8 };
-}
-function tr_stab(v: number): Effect {
-  return { k: "trait", id: "stabilityNeed", v };
-}
-function tr_retrain(v: number): Effect {
-  return { k: "trait", id: "retrain", v };
-}
-
-export { hasAnswer };

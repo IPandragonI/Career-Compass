@@ -1,6 +1,6 @@
 import type { Question } from "@/types/assessment";
 import { CONSTRAINTS } from "@/data/taxonomy";
-import { av, e, fam, hobby, i, m, opt, q, sd, ss, tr } from "./helpers";
+import { av, e, hobby, i, m, opt, q, sd, ss, tr } from "./helpers";
 
 /**
  * Questions principales. Le moteur adaptatif choisit dans cette banque ET dans les
@@ -26,7 +26,11 @@ const interests: Question[] = [
       opt("practical", "Réaliser une activité pratique et observer le résultat", [i("manuel", 3), i("operations", 1.5), m("concret", 1)]),
       opt("data", "Analyser des données pour comprendre une situation", [i("donnees", 3), i("analyse", 1.5), ss("analytique")]),
       opt("team", "Organiser une équipe et coordonner plusieurs tâches", [i("organisation", 3), i("gestion", 1.5), ss("coordination")]),
-      opt("nature", "Explorer un environnement naturel et collecter des informations", [i("nature", 3), i("recherche", 1.5), e("fieldwork", 4, 1)]),
+      opt("nature", "Explorer un environnement naturel et collecter des informations", [
+        i("nature", 3),
+        i("recherche", 1.5),
+        e("fieldwork", 4, 1),
+      ]),
       opt("investigate", "Enquêter sur un problème et découvrir ses causes", [i("recherche", 3), i("analyse", 1.5)]),
     ],
   }),
@@ -74,7 +78,12 @@ const interests: Question[] = [
     topic: "terrain-ecran",
     prompt: "Quelle activité préférez-vous ?",
     options: [
-      opt("field", "Relever des mesures et observer sur le terrain", [i("donnees", 1.5), i("recherche", 1.5), i("nature", 1), e("fieldwork", 4, 1.5)]),
+      opt("field", "Relever des mesures et observer sur le terrain", [
+        i("donnees", 1.5),
+        i("recherche", 1.5),
+        i("nature", 1),
+        e("fieldwork", 4, 1.5),
+      ]),
       opt("screen", "Traiter et interpréter ces mesures sur ordinateur", [i("donnees", 2), i("numerique", 2), e("deskWork", 4, 1.5)]),
     ],
   }),
@@ -86,7 +95,12 @@ const interests: Question[] = [
     prompt: "Quelle position vous convient le mieux ?",
     options: [
       opt("do", "Réaliser moi-même le travail concret", [i("manuel", 2), i("operations", 1.5), e("teamwork", 1, 0.5)]),
-      opt("coordinate", "Coordonner ceux qui réalisent", [i("organisation", 2), i("gestion", 1.5), ss("coordination"), e("teamwork", 3, 0.5)]),
+      opt("coordinate", "Coordonner ceux qui réalisent", [
+        i("organisation", 2),
+        i("gestion", 1.5),
+        ss("coordination"),
+        e("teamwork", 3, 0.5),
+      ]),
     ],
   }),
   q({
@@ -96,8 +110,18 @@ const interests: Question[] = [
     topic: "personnes-systemes",
     prompt: "Quelle journée vous attire le plus ?",
     options: [
-      opt("people", "Une journée d’échanges et de rencontres avec des personnes", [i("aide", 1.5), i("communication", 1.5), i("persuasion", 1), e("publicInteraction", 4, 1.5)]),
-      opt("system", "Une journée à comprendre et faire fonctionner un système ou un objet", [i("analyse", 1.5), i("machines", 1.5), i("manuel", 1), e("publicInteraction", 1, 1.5)]),
+      opt("people", "Une journée d’échanges et de rencontres avec des personnes", [
+        i("aide", 1.5),
+        i("communication", 1.5),
+        i("persuasion", 1),
+        e("publicInteraction", 4, 1.5),
+      ]),
+      opt("system", "Une journée à comprendre et faire fonctionner un système ou un objet", [
+        i("analyse", 1.5),
+        i("machines", 1.5),
+        i("manuel", 1),
+        e("publicInteraction", 1, 1.5),
+      ]),
     ],
   }),
   q({
@@ -301,24 +325,25 @@ const motivations: Question[] = [
       const a = ctx.answers["q-motiv-top"];
       if (!a || a.kind !== "multi") return [];
       return a.values.map((v) => {
-        const label = {
-          utilite: "Être utile aux autres",
-          environnement: "Agir pour l’environnement",
-          concret: "Voir des résultats concrets",
-          defi: "Relever des défis intellectuels",
-          creativite: "Pouvoir créer",
-          autonomie: "Être autonome",
-          stabilite: "Avoir de la stabilité",
-          salaire: "Gagner correctement ma vie",
-          reconnaissance: "Être reconnu·e",
-          apprentissage: "Apprendre en continu",
-          variete: "La variété",
-          responsabilite: "Avoir des responsabilités",
-          equipe: "Faire partie d’une équipe",
-          liberte: "Liberté et flexibilité",
-          voyage: "Voyager et découvrir",
-          cause: "Servir une cause qui me tient à cœur",
-        }[v as string] ?? v;
+        const label =
+          {
+            utilite: "Être utile aux autres",
+            environnement: "Agir pour l’environnement",
+            concret: "Voir des résultats concrets",
+            defi: "Relever des défis intellectuels",
+            creativite: "Pouvoir créer",
+            autonomie: "Être autonome",
+            stabilite: "Avoir de la stabilité",
+            salaire: "Gagner correctement ma vie",
+            reconnaissance: "Être reconnu·e",
+            apprentissage: "Apprendre en continu",
+            variete: "La variété",
+            responsabilite: "Avoir des responsabilités",
+            equipe: "Faire partie d’une équipe",
+            liberte: "Liberté et flexibilité",
+            voyage: "Voyager et découvrir",
+            cause: "Servir une cause qui me tient à cœur",
+          }[v as string] ?? v;
         return opt(v, label, [{ k: "motivation", id: v as never, w: 1, essential: true }]);
       });
     },
@@ -335,8 +360,17 @@ const motivations: Question[] = [
     resolves: ["c-stab-var"],
     prompt: "Si vous deviez choisir…",
     options: [
-      opt("stability", "Un emploi stable avec des tâches assez prévisibles", [m("stabilite", 2.5), tr("stabilityNeed", 0.9), e("routine", 3, 1)]),
-      opt("variety", "Des missions variées avec moins de sécurité", [m("variete", 2.5), m("liberte", 1), tr("stabilityNeed", 0.2), tr("seasonalOk", 0.7)]),
+      opt("stability", "Un emploi stable avec des tâches assez prévisibles", [
+        m("stabilite", 2.5),
+        tr("stabilityNeed", 0.9),
+        e("routine", 3, 1),
+      ]),
+      opt("variety", "Des missions variées avec moins de sécurité", [
+        m("variete", 2.5),
+        m("liberte", 1),
+        tr("stabilityNeed", 0.2),
+        tr("seasonalOk", 0.7),
+      ]),
     ],
   }),
   q({
@@ -357,8 +391,16 @@ const motivations: Question[] = [
     topic: "responsabilite",
     prompt: "Si vous deviez choisir…",
     options: [
-      opt("resp", "Des responsabilités importantes, avec la pression qui va avec", [m("responsabilite", 2.5), m("reconnaissance", 1), tr("responsibilityOk", 0.9)]),
-      opt("calm", "Un poste sans grande pression, avec un bon équilibre de vie", [m("liberte", 1.5), tr("responsibilityOk", 0.2), av("manages-people", 2)]),
+      opt("resp", "Des responsabilités importantes, avec la pression qui va avec", [
+        m("responsabilite", 2.5),
+        m("reconnaissance", 1),
+        tr("responsibilityOk", 0.9),
+      ]),
+      opt("calm", "Un poste sans grande pression, avec un bon équilibre de vie", [
+        m("liberte", 1.5),
+        tr("responsibilityOk", 0.2),
+        av("manages-people", 2),
+      ]),
     ],
   }),
   q({
@@ -371,7 +413,11 @@ const motivations: Question[] = [
     options: [
       opt("person", "Aider une personne à aller mieux, concrètement", [m("utilite", 3), i("aide", 1)]),
       opt("nature", "Protéger ou restaurer un milieu naturel", [m("environnement", 3), i("nature", 1)]),
-      opt("service", "Faire fonctionner un service dont tout le monde dépend", [m("utilite", 1.5), m("responsabilite", 1.5), m("concret", 1)]),
+      opt("service", "Faire fonctionner un service dont tout le monde dépend", [
+        m("utilite", 1.5),
+        m("responsabilite", 1.5),
+        m("concret", 1),
+      ]),
       opt("beauty", "Créer quelque chose de beau ou d’inédit", [m("creativite", 3)]),
       opt("knowledge", "Faire progresser la connaissance", [m("defi", 2), m("apprentissage", 1.5), i("recherche", 1)]),
       opt("durable", "Construire quelque chose de durable", [m("concret", 2.5), m("cause", 1)]),
@@ -398,8 +444,22 @@ const motivations: Question[] = [
 
 function MOTIVATION_KEYS(): string[] {
   return [
-    "utilite", "environnement", "concret", "defi", "creativite", "autonomie", "stabilite", "salaire",
-    "reconnaissance", "apprentissage", "variete", "responsabilite", "equipe", "liberte", "voyage", "cause",
+    "utilite",
+    "environnement",
+    "concret",
+    "defi",
+    "creativite",
+    "autonomie",
+    "stabilite",
+    "salaire",
+    "reconnaissance",
+    "apprentissage",
+    "variete",
+    "responsabilite",
+    "equipe",
+    "liberte",
+    "voyage",
+    "cause",
   ].map((k) => `motivation:${k}`);
 }
 
@@ -416,11 +476,29 @@ const daily: Question[] = [
     prompt: "Quelle journée de travail vous ressemble le plus ?",
     options: [
       opt("computer", "Une journée dominée par le travail sur ordinateur", [e("deskWork", 4, 2), i("numerique", 2)]),
-      opt("technical-mix", "Un mélange de travail technique et d’interventions pratiques", [e("technicalWork", 3.5, 2), i("operations", 2), i("manuel", 1), e("fieldwork", 2.5, 1)]),
+      opt("technical-mix", "Un mélange de travail technique et d’interventions pratiques", [
+        e("technicalWork", 3.5, 2),
+        i("operations", 2),
+        i("manuel", 1),
+        e("fieldwork", 2.5, 1),
+      ]),
       opt("sites", "Une journée à visiter des sites ou à travailler dehors", [e("fieldwork", 4, 2), e("travel", 3, 1), i("nature", 1)]),
-      opt("people", "Une journée faite de personnes, de discussions et de coordination", [e("publicInteraction", 3.5, 1.5), e("teamwork", 3.5, 1.5), i("organisation", 1.5), i("aide", 1)]),
-      opt("research", "Une journée de recherche, d’enquête et d’analyse", [i("recherche", 2.5), e("analyticalWork", 3.5, 2), i("analyse", 1)]),
-      opt("production", "Une journée de production, de maintenance ou d’exploitation", [i("machines", 2), i("operations", 2), e("routine", 2.5, 1)]),
+      opt("people", "Une journée faite de personnes, de discussions et de coordination", [
+        e("publicInteraction", 3.5, 1.5),
+        e("teamwork", 3.5, 1.5),
+        i("organisation", 1.5),
+        i("aide", 1),
+      ]),
+      opt("research", "Une journée de recherche, d’enquête et d’analyse", [
+        i("recherche", 2.5),
+        e("analyticalWork", 3.5, 2),
+        i("analyse", 1),
+      ]),
+      opt("production", "Une journée de production, de maintenance ou d’exploitation", [
+        i("machines", 2),
+        i("operations", 2),
+        e("routine", 2.5, 1),
+      ]),
     ],
   }),
   q({
@@ -572,7 +650,11 @@ const skills: Question[] = [
     prompt: "Quelle phrase vous ressemble le plus ?",
     options: [
       opt("detail", "Je repère vite l’erreur de détail que les autres ne voient pas", [ss("rigueur", 2.5), ss("analytique", 1)]),
-      opt("global", "Je vois vite l’ensemble avant d’entrer dans les détails", [ss("coordination", 1.5), ss("decision", 1.5), ss("creativite", 0.5)]),
+      opt("global", "Je vois vite l’ensemble avant d’entrer dans les détails", [
+        ss("coordination", 1.5),
+        ss("decision", 1.5),
+        ss("creativite", 0.5),
+      ]),
     ],
   }),
   q({
@@ -612,7 +694,11 @@ const skills: Question[] = [
     prompt: "Vous devez décider rapidement avec des informations incomplètes. Que faites-vous ?",
     options: [
       opt("decide", "Je tranche et j’ajuste ensuite si nécessaire", [ss("decision", 2.5), tr("uncertaintyOk", 0.9)]),
-      opt("collect", "Je cherche à obtenir l’information manquante, même si cela prend du temps", [ss("rigueur", 1.5), ss("analytique", 1), tr("uncertaintyOk", 0.4)]),
+      opt("collect", "Je cherche à obtenir l’information manquante, même si cela prend du temps", [
+        ss("rigueur", 1.5),
+        ss("analytique", 1),
+        tr("uncertaintyOk", 0.4),
+      ]),
       opt("consult", "Je consulte l’équipe avant de décider", [ss("communication", 1.5), ss("coordination", 1), tr("uncertaintyOk", 0.5)]),
       opt("avoid", "Je préfère que quelqu’un d’autre décide", [tr("uncertaintyOk", 0.1), tr("responsibilityOk", 0.2)]),
     ],
@@ -684,7 +770,10 @@ const transition: Question[] = [
     prompt: "Votre rapport à la responsabilité et à l’imprévu ?",
     options: [
       opt("low", "Je préfère un cadre clair, sans grandes décisions à prendre", [tr("responsibilityOk", 0.1), tr("uncertaintyOk", 0.2)]),
-      opt("medium", "Des responsabilités sur mon périmètre, un cadre assez défini", [tr("responsibilityOk", 0.5), tr("uncertaintyOk", 0.4)]),
+      opt("medium", "Des responsabilités sur mon périmètre, un cadre assez défini", [
+        tr("responsibilityOk", 0.5),
+        tr("uncertaintyOk", 0.4),
+      ]),
       opt("high", "J’aime décider et gérer l’imprévu", [tr("responsibilityOk", 0.9), tr("uncertaintyOk", 0.9), m("responsabilite", 1.5)]),
     ],
   }),
@@ -768,7 +857,6 @@ const leisure: Question[] = [
   }),
 ];
 
-/* Familles de métiers : un petit biais d’exploration large pour les personnes sans direction claire. */
 export const QUESTIONS_CORE: Question[] = [
   ...interests,
   ...environment,
@@ -779,5 +867,3 @@ export const QUESTIONS_CORE: Question[] = [
   ...aversions,
   ...leisure,
 ];
-
-export { fam };

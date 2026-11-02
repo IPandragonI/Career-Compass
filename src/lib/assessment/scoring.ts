@@ -3,8 +3,9 @@ import { ENTRY_LEVEL_RANK } from "@/types/occupation";
 import type { Profile } from "@/types/profile";
 import type { DimensionScore, ScoreDimensionId, TransitionCategory, Warning } from "@/types/recommendation";
 import type { ConstraintId, InterestId, SkillId } from "@/data/taxonomy";
-import { CONSTRAINT_BY_ID, CONSTRAINT_IDS, ENV_BY_ID, ENV_IDS, INTEREST_IDS, MOTIVATION_BY_ID, MOTIVATION_IDS } from "@/data/taxonomy";
+import { CONSTRAINT_BY_ID, CONSTRAINT_IDS, ENV_IDS, INTEREST_IDS, MOTIVATION_IDS } from "@/data/taxonomy";
 import { constraintState } from "./constraints";
+import { t } from "@/lib/i18n/messages";
 
 /** Pondérations par défaut : choix d’ingénierie, pas des poids validés scientifiquement. */
 export const DEFAULT_WEIGHTS: Record<ScoreDimensionId, number> = {
@@ -36,7 +37,10 @@ export function interestAlignment(p: Profile, occ: Occupation): Part {
   const evidenceN = INTEREST_IDS.reduce((s, id) => s + Math.min(2, p.interests[id].n), 0);
   if (!totalW || maxU <= 0.0001) return { score: 0.5, confidence: 0.1 };
   const sA = tags.reduce((s, [id, w]) => s + w * u(id), 0) / totalW; // -1..1
-  const top = [...INTEREST_IDS].sort((a, b) => u(b) - u(a)).slice(0, 3).filter((id) => u(id) > 0);
+  const top = [...INTEREST_IDS]
+    .sort((a, b) => u(b) - u(a))
+    .slice(0, 3)
+    .filter((id) => u(id) > 0);
   const topSum = top.reduce((s, id) => s + u(id), 0);
   const c = topSum > 0 ? top.reduce((s, id) => s + u(id) * ((occ.interestTags[id] ?? 0) / 3), 0) / topSum : 0.3;
   let score = 0.4 * ((clamp(sA, -1, 1) + 1) / 2) + 0.6 * c;
@@ -45,7 +49,10 @@ export function interestAlignment(p: Profile, occ: Occupation): Part {
   return { score: clamp(score), confidence: clamp(evidenceN / 14) };
 }
 
-export function environmentAlignment(p: Profile, occ: Occupation): Part & { gaps: { id: string; gap: number; pref: number; value: number; essential: boolean }[] } {
+export function environmentAlignment(
+  p: Profile,
+  occ: Occupation,
+): Part & { gaps: { id: string; gap: number; pref: number; value: number; essential: boolean }[] } {
   let num = 0;
   let den = 0;
   let comparable = 0;
@@ -97,7 +104,7 @@ export function skillRelevance(p: Profile, occ: Occupation): Part & { transferab
 }
 
 /** Estimation des mois de formation réellement nécessaires pour cette personne. */
-export function effectiveTrainingMonths(p: Profile, occ: Occupation): number | null {
+export function effectiveTrainingMonths(p: Profile, occ: Occupation, skillOverlap = 0): number | null {
   const m = occ.training.months;
   if (m === null) return null;
   const rank = p.education.levelRank;
@@ -109,12 +116,19 @@ export function effectiveTrainingMonths(p: Profile, occ: Occupation): number | n
   }
   const bg = p.background.sectorIds.some((s) => occ.sectorIds.includes(s));
   if (bg) f *= 0.85;
+  // Qualification déjà au niveau requis + compétences largement réutilisables : simple montée en compétences.
+  if (rank !== undefined && rank >= ENTRY_LEVEL_RANK[occ.training.typicalLevel] && skillOverlap >= 0.5) f = Math.min(f, 0.15);
   return Math.round(m * f);
 }
 
-export function accessibility(p: Profile, occ: Occupation): Part & { effMonths: number | null; levelGap: number | null } {
-  const eff = effectiveTrainingMonths(p, occ);
-  const max = p.transition.maxTrainingMonths;
+export function accessibility(
+  p: Profile,
+  occ: Occupation,
+  skillOverlap = 0,
+): Part & { effMonths: number | null; levelGap: number | null; urgentConflict: boolean } {
+  const eff = effectiveTrainingMonths(p, occ, skillOverlap);
+  // Recherche d’emploi rapide : la durée de formation tolérée est plafonnée.
+  const max = p.transition.urgent ? Math.min(p.transition.maxTrainingMonths ?? 12, 12) : p.transition.maxTrainingMonths;
   let train: number;
   if (eff === null) train = 0.6;
   else if (max === null) train = clamp(1 - eff / 80);
@@ -130,30 +144,48 @@ export function accessibility(p: Profile, occ: Occupation): Part & { effMonths: 
     score *= occ.training.workStudyPossible === true ? 1 : occ.training.workStudyPossible === false ? 0.8 : 0.92;
   }
   const conf = (eff === null ? 0.4 : 0.8) * (rank === undefined ? 0.7 : 1) + (max === null ? 0 : 0.1);
-  return { score: clamp(score), confidence: clamp(conf), effMonths: eff, levelGap };
+  const urgentConflict = p.transition.urgent && eff !== null && eff > 12;
+  return { score: clamp(score), confidence: clamp(conf), effMonths: eff, levelGap, urgentConflict };
 }
 
 export function constraintCompat(p: Profile, occ: Occupation): Part & { notes: string[] } {
-  const t = p.transition;
+  const tr = p.transition;
   const notes: string[] = [];
   let penalty = 0;
   let known = 0;
-  if (t.salaryFloor && t.salaryFloor !== "aucun") {
-    if (occ.earnings === null) notes.push("Niveau de rémunération typique non renseigné dans nos données.");
+  if (tr.salaryFloor && tr.salaryFloor !== "aucun") {
+    if (occ.earnings === null) notes.push(t.warnings.salaryUnknown);
     else {
       known++;
-      if (t.salaryFloor === "eleve" && occ.earnings === 1) { penalty += 0.5; notes.push("Rémunération généralement modeste, en deçà de ce que vous attendez."); }
-      else if (t.salaryFloor === "eleve" && occ.earnings === 2) penalty += 0.2;
-      else if (t.salaryFloor === "moyen" && occ.earnings === 1) { penalty += 0.3; notes.push("Rémunération souvent modeste, en début de carrière notamment."); }
+      if (tr.salaryFloor === "eleve" && occ.earnings === 1) {
+        penalty += 0.5;
+        notes.push(t.warnings.salaryLow);
+      } else if (tr.salaryFloor === "eleve" && occ.earnings === 2) penalty += 0.2;
+      else if (tr.salaryFloor === "moyen" && occ.earnings === 1) {
+        penalty += 0.3;
+        notes.push(t.warnings.salaryLowish);
+      }
     }
   }
-  if (t.stableRequired) {
-    if (occ.stability === null) notes.push("Stabilité de l’emploi non renseignée dans nos données.");
-    else { known++; if (occ.stability === 1) { penalty += 0.5; notes.push("Emploi souvent peu stable (contrats courts, saisonnalité ou indépendance)."); } }
+  if (tr.stableRequired) {
+    if (occ.stability === null) notes.push(t.warnings.stabilityUnknown);
+    else {
+      known++;
+      if (occ.stability === 1) {
+        penalty += 0.5;
+        notes.push(t.warnings.stabilityLow);
+      }
+    }
   }
-  if (t.seasonalOk === false && occ.constraints["unstable-employment"] === "yes") { known++; penalty += 0.3; }
-  if (t.licence === "non" && occ.training.prerequisites.some((x) => /permis/i.test(x))) { known++; penalty += 0.4; notes.push("Un permis de conduire est mentionné comme prérequis."); }
-  if (t.relocation === "non" && occ.sectorIds.includes("environnement") && occ.confidence === "faible") penalty += 0;
+  if (tr.seasonalOk === false && occ.constraints["unstable-employment"] === "yes") {
+    known++;
+    penalty += 0.3;
+  }
+  if (tr.licence === "non" && occ.training.prerequisites.some((x) => /permis/i.test(x))) {
+    known++;
+    penalty += 0.4;
+    notes.push(t.warnings.licence);
+  }
   return { score: clamp(1 - penalty), confidence: known ? clamp(0.4 + known * 0.2) : 0.25, notes };
 }
 
@@ -177,15 +209,23 @@ export function evaluateDealBreakers(p: Profile, occ: Occupation): DealBreakerRe
     const state = constraintState(occ, id as ConstraintId);
     const label = CONSTRAINT_BY_ID[id].label.toLowerCase();
     if (level === 3) {
-      if (state === "yes") { excluded = true; excludedReason ??= `Incompatible avec un point que vous jugez fortement indésirable : ${label}.`; }
-      else if (state === "sometimes") { penalty += 0.15; warnings.push({ severity: "forte", text: `Ce métier implique parfois ${label}, que vous jugez fortement indésirable.` }); }
-      else if (state === "unknown") unknowns.push(`À vérifier : ${label} (point que vous voulez éviter) — non précisé dans nos données.`);
+      if (state === "yes") {
+        excluded = true;
+        excludedReason ??= t.warnings.excluded(label);
+      } else if (state === "sometimes") {
+        penalty += 0.15;
+        warnings.push({ severity: "forte", text: t.warnings.dealSometimesStrong(label) });
+      } else if (state === "unknown") unknowns.push(t.warnings.unknownStrong(label));
     } else if (level === 2) {
-      if (state === "yes") { penalty += 0.12; warnings.push({ severity: "attention", text: `Ce métier implique ${label}, que vous jugez plutôt indésirable.` }); }
-      else if (state === "sometimes") { penalty += 0.04; warnings.push({ severity: "info", text: `Il peut arriver d’avoir à subir ${label}.` }); }
-      else if (state === "unknown") unknowns.push(`À vérifier : ${label}.`);
+      if (state === "yes") {
+        penalty += 0.12;
+        warnings.push({ severity: "attention", text: t.warnings.dealYesMedium(label) });
+      } else if (state === "sometimes") {
+        penalty += 0.04;
+        warnings.push({ severity: "info", text: t.warnings.dealSometimesMedium(label) });
+      } else if (state === "unknown") unknowns.push(t.warnings.unknownMedium(label));
     } else if (level === 1 && state === "yes") {
-      warnings.push({ severity: "info", text: `Ce métier implique ${label}, que vous jugez acceptable avec modération.` });
+      warnings.push({ severity: "info", text: t.warnings.dealYesLow(label) });
     }
   }
   return { excluded, excludedReason, penalty, warnings, unknowns };
@@ -202,6 +242,9 @@ export interface OccupationScore {
   effMonths: number | null;
   levelGap: number | null;
   constraintNotes: string[];
+  entryRefused: boolean;
+  urgentConflict: boolean;
+  skillOverlap: number;
 }
 
 export function scoreOccupation(p: Profile, occ: Occupation, weights: Record<ScoreDimensionId, number> = DEFAULT_WEIGHTS): OccupationScore {
@@ -209,10 +252,19 @@ export function scoreOccupation(p: Profile, occ: Occupation, weights: Record<Sco
   const env = environmentAlignment(p, occ);
   const mot = motivationAlignment(p, occ);
   const skills = skillRelevance(p, occ);
-  const acc = accessibility(p, occ);
+  const overlap = occ.skillTags.length ? skills.transferable.length / occ.skillTags.length : 0;
+  const acc = accessibility(p, occ, overlap);
+  const sectorChange = p.background.hasBackground && !occ.sectorIds.some((x) => p.background.sectorIds.includes(x));
+  const entryRefused = p.transition.entryLevelOk === false && occ.training.entryRoles === true && sectorChange;
+  if (entryRefused) acc.score = clamp(acc.score * 0.85);
   const con = constraintCompat(p, occ);
   const parts: [ScoreDimensionId, Part][] = [
-    ["interest", interest], ["environment", env], ["motivation", mot], ["skills", skills], ["accessibility", acc], ["constraints", con],
+    ["interest", interest],
+    ["environment", env],
+    ["motivation", mot],
+    ["skills", skills],
+    ["accessibility", acc],
+    ["constraints", con],
   ];
   const wTotal = Object.values(weights).reduce((a, b) => a + b, 0);
   const dimensions: DimensionScore[] = parts.map(([id, part]) => {
@@ -222,9 +274,19 @@ export function scoreOccupation(p: Profile, occ: Occupation, weights: Record<Sco
   const dealBreakers = evaluateDealBreakers(p, occ);
   const composite = clamp(dimensions.reduce((s, d) => s + d.weighted, 0) - dealBreakers.penalty);
   return {
-    occupation: occ, dimensions, composite, dealBreakers,
-    envGaps: env.gaps, missingEssential: mot.missingEssential, transferable: skills.transferable,
-    effMonths: acc.effMonths, levelGap: acc.levelGap, constraintNotes: con.notes,
+    occupation: occ,
+    dimensions,
+    composite,
+    dealBreakers,
+    envGaps: env.gaps,
+    missingEssential: mot.missingEssential,
+    transferable: skills.transferable,
+    effMonths: acc.effMonths,
+    levelGap: acc.levelGap,
+    constraintNotes: con.notes,
+    entryRefused,
+    urgentConflict: acc.urgentConflict,
+    skillOverlap: overlap,
   };
 }
 
@@ -233,20 +295,18 @@ export function classifyTransition(p: Profile, s: OccupationScore): { category: 
   const bg = p.background;
   const sectorOverlap = occ.sectorIds.some((x) => bg.sectorIds.includes(x));
   const familyOverlap = (bg.familyIds as string[]).includes(occ.familyId);
-  const skillOverlap = occ.skillTags.length ? s.transferable.length / occ.skillTags.length : 0;
+  const skillOverlap = s.skillOverlap;
   const max = p.transition.maxTrainingMonths;
   const eff = s.effMonths;
-  const tooLong = eff !== null && (max === null ? eff > 36 : eff > max * 1.5 && eff > 6);
+  const tooLong = eff !== null && (max === null ? eff > 36 : eff > max * 1.5 && eff - max > 6);
   const bigLevelGap = (s.levelGap ?? 0) >= 3;
   if (tooLong || bigLevelGap) {
-    return { category: "ambitieuse", reason: tooLong ? `Elle demande environ ${eff} mois de formation, au-delà de ce que vous envisagez.` : "Elle demande un niveau de qualification nettement supérieur au vôtre." };
+    return { category: "ambitieuse", reason: tooLong ? t.category.longTraining(eff ?? 0) : t.category.levelGap };
   }
-  if (!bg.hasBackground) return { category: "nouvelle", reason: "Vous n’avez pas encore de parcours précis : toutes les pistes sont de nouvelles directions." };
-  if ((sectorOverlap || familyOverlap) && skillOverlap >= 0.5) return { category: "proche", reason: "Elle reste dans un secteur que vous connaissez et réutilise une grande partie de vos compétences." };
+  if (!bg.hasBackground) return { category: "nouvelle", reason: t.category.noBackground };
+  if ((sectorOverlap || familyOverlap) && skillOverlap >= 0.5) return { category: "proche", reason: t.category.near };
   if (sectorOverlap || familyOverlap || skillOverlap >= 0.4) {
-    return { category: "adjacent", reason: sectorOverlap || familyOverlap ? "Elle reste dans votre univers mais change l’activité ou les responsabilités." : "Elle réutilise une partie de vos compétences dans un autre univers." };
+    return { category: "adjacent", reason: sectorOverlap || familyOverlap ? t.category.adjacentSector : t.category.adjacentSkills };
   }
-  return { category: "nouvelle", reason: "Elle s’écarte de votre parcours mais correspond à vos intérêts et motivations." };
+  return { category: "nouvelle", reason: t.category.new };
 }
-
-export { ENV_BY_ID, MOTIVATION_BY_ID };

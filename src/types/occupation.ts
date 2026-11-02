@@ -1,11 +1,4 @@
-import type {
-  ConstraintId,
-  EnvDimId,
-  FamilyId,
-  InterestId,
-  MotivationId,
-  SkillId,
-} from "@/data/taxonomy";
+import type { ConstraintId, EnvDimId, FamilyId, InterestId, MotivationId, SkillId } from "@/data/taxonomy";
 
 /**
  * Échelle des conditions de travail (0 à 4) :

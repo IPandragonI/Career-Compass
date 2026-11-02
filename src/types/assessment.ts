@@ -1,11 +1,4 @@
-import type {
-  ConstraintId,
-  EnvDimId,
-  FamilyId,
-  InterestId,
-  MotivationId,
-  SkillId,
-} from "@/data/taxonomy";
+import type { ConstraintId, EnvDimId, FamilyId, InterestId, MotivationId, SkillId } from "@/data/taxonomy";
 import type { Onboarding } from "@/types/profile";
 import type { Profile } from "@/types/profile";
 
@@ -43,14 +36,7 @@ export type Effect =
   | { k: "hobby"; text: string };
 
 export type DimensionId =
-  | "interets"
-  | "environnement"
-  | "motivations"
-  | "competences"
-  | "quotidien"
-  | "transition"
-  | "loisirs"
-  | "aversions";
+  "interets" | "environnement" | "motivations" | "competences" | "quotidien" | "transition" | "loisirs" | "aversions";
 
 export const DIMENSION_LABEL: Record<DimensionId, string> = {
   interets: "Intérêts",

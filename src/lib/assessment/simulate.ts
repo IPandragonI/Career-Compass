@@ -21,26 +21,39 @@ export interface Persona {
 
 function effectAffinity(ef: Effect, persona: Persona): number {
   switch (ef.k) {
-    case "interest": return (persona.likes[`interest:${ef.id}`] ?? 0) * Math.sign(ef.w) * Math.min(Math.abs(ef.w), 3);
-    case "motivation": return (persona.likes[`motivation:${ef.id}`] ?? 0) * ef.w;
-    case "family": return (persona.likes[`family:${ef.id}`] ?? 0) * ef.w;
-    case "skillSelf": case "skillDemo": return (persona.likes[`skill:${ef.id}`] ?? 0) * ef.w * 0.5;
+    case "interest":
+      return (persona.likes[`interest:${ef.id}`] ?? 0) * Math.sign(ef.w) * Math.min(Math.abs(ef.w), 3);
+    case "motivation":
+      return (persona.likes[`motivation:${ef.id}`] ?? 0) * ef.w;
+    case "family":
+      return (persona.likes[`family:${ef.id}`] ?? 0) * ef.w;
+    case "skillSelf":
+    case "skillDemo":
+      return (persona.likes[`skill:${ef.id}`] ?? 0) * ef.w * 0.5;
     case "env": {
       const t = persona.envTarget?.[ef.id];
       return t === undefined ? 0 : (2 - Math.abs(t - ef.v)) * (ef.w ?? 1) * 0.8;
     }
     case "aversion": {
       const a = persona.aversions?.[ef.id];
-      return a === undefined ? 0 : -(Math.abs(a - ef.level)) + 1;
+      return a === undefined ? 0 : -Math.abs(a - ef.level) + 1;
     }
-    case "trait": return (persona.likes[`trait:${ef.id}`] ?? 0) * (ef.v - 0.5) * 2;
-    default: return 0;
+    case "trait":
+      return (persona.likes[`trait:${ef.id}`] ?? 0) * (ef.v - 0.5) * 2;
+    default:
+      return 0;
   }
 }
 
 const optScore = (o: Option, persona: Persona) => o.effects.reduce((s, ef) => s + effectAffinity(ef, persona), 0);
 
-export function personaAnswer(persona: Persona, kind: string, options: Option[], maxSelect: number | undefined, items?: { id: ConstraintId }[]): Answer {
+export function personaAnswer(
+  persona: Persona,
+  kind: string,
+  options: Option[],
+  maxSelect: number | undefined,
+  items?: { id: ConstraintId }[],
+): Answer {
   if (kind === "matrix") {
     const values: Partial<Record<ConstraintId, AversionLevel>> = {};
     for (const it of items ?? []) values[it.id] = persona.aversions?.[it.id] ?? 0;
@@ -73,15 +86,20 @@ export function simulate(persona: Persona, maxSteps = 80): SimulationResult {
   let skipCounter = 0;
   for (let i = 0; i < maxSteps; i++) {
     const next = nextQuestion(persona.onboarding, state);
-    if (next.done || !next.question) { doneReason = next.doneReason; break; }
+    if (next.done || !next.question) {
+      doneReason = next.doneReason;
+      break;
+    }
     const q = next.question;
     const profile = buildProfile(persona.onboarding, state.answers, state.asked);
     const ctx = makeContext(persona.onboarding, state.answers, state.asked, profile);
     const options = questionOptions(q, ctx);
     skipCounter += persona.skipRate ?? 0;
     let ans: Answer;
-    if (skipCounter >= 1 && !q.mandatory) { skipCounter -= 1; ans = { kind: "skipped" }; }
-    else ans = personaAnswer(persona, q.kind, options, q.maxSelect, q.items);
+    if (skipCounter >= 1 && !q.mandatory) {
+      skipCounter -= 1;
+      ans = { kind: "skipped" };
+    } else ans = personaAnswer(persona, q.kind, options, q.maxSelect, q.items);
     seconds += ans.kind === "skipped" ? 5 : q.seconds;
     state = recordAnswer(state, q.id, ans);
   }

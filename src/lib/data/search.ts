@@ -5,6 +5,23 @@ import { SECTOR_BY_ID } from "@/data/sectors/sectors";
 import { INTEREST_BY_ID } from "@/data/taxonomy";
 import { normalize } from "./normalization";
 
+/** Rapproche un métier saisi en texte libre des fiches (noms et alias), sans chercher dans les descriptions. */
+export function matchOccupationsByName(text: string, list: Occupation[], limit = 2): Occupation[] {
+  const terms = normalize(text)
+    .split(" ")
+    .filter((w) => w.length >= 4);
+  if (!terms.length) return [];
+  return list
+    .map((o) => {
+      const names = [o.name, ...o.aliases].map(normalize);
+      const hits = terms.filter((t) => names.some((n) => n.split(" ").some((w) => w.startsWith(t.slice(0, Math.max(5, t.length - 2))))));
+      return { o, score: hits.length / terms.length };
+    })
+    .filter((x) => x.score >= 0.99)
+    .slice(0, limit)
+    .map((x) => x.o);
+}
+
 export interface OccupationFilters {
   query: string;
   sectorIds: string[];
@@ -18,13 +35,31 @@ export interface OccupationFilters {
   favoritesOnly: boolean;
 }
 
-export const EMPTY_FILTERS: OccupationFilters = { query: "", sectorIds: [], interestIds: [], familyIds: [], maxMonths: null, maxLevelRank: null, env: {}, favoritesOnly: false };
+export const EMPTY_FILTERS: OccupationFilters = {
+  query: "",
+  sectorIds: [],
+  interestIds: [],
+  familyIds: [],
+  maxMonths: null,
+  maxLevelRank: null,
+  env: {},
+  favoritesOnly: false,
+};
 
 const indexCache = new WeakMap<Occupation, string>();
 function haystack(o: Occupation): string {
   let h = indexCache.get(o);
   if (!h) {
-    h = normalize([o.name, ...o.aliases, o.description, ...o.dailyTasks, ...o.sectorIds.map((s) => SECTOR_BY_ID[s]?.name ?? ""), ...Object.keys(o.interestTags).map((i) => INTEREST_BY_ID[i as InterestId]?.label ?? "")].join(" "));
+    h = normalize(
+      [
+        o.name,
+        ...o.aliases,
+        o.description,
+        ...o.dailyTasks,
+        ...o.sectorIds.map((s) => SECTOR_BY_ID[s]?.name ?? ""),
+        ...Object.keys(o.interestTags).map((i) => INTEREST_BY_ID[i as InterestId]?.label ?? ""),
+      ].join(" "),
+    );
     indexCache.set(o, h);
   }
   return h;
@@ -44,7 +79,10 @@ export function searchOccupations(list: Occupation[], f: OccupationFilters, favo
     let ok = true;
     for (const [dim, min] of Object.entries(f.env)) {
       const v = o.workEnvironment[dim as keyof Occupation["workEnvironment"]];
-      if (min !== undefined && (v === null || v < min)) { ok = false; break; }
+      if (min !== undefined && (v === null || v < min)) {
+        ok = false;
+        break;
+      }
     }
     if (!ok) continue;
     let score = 0;

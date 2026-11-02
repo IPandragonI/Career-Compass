@@ -1,41 +1,13 @@
-import type {
-  ConstraintId,
-  EnvDimId,
-  FamilyId,
-  InterestId,
-  MotivationId,
-  SkillId,
-} from "@/data/taxonomy";
+import type { ConstraintId, EnvDimId, FamilyId, InterestId, MotivationId, SkillId } from "@/data/taxonomy";
 import type { AversionLevel, DimensionId, TraitId } from "@/types/assessment";
 
-export type EducationLevel =
-  | "aucune"
-  | "professionnel"
-  | "secondaire"
-  | "bac+2"
-  | "licence"
-  | "master"
-  | "doctorat"
-  | "autre"
-  | "nsp";
+export type EducationLevel = "aucune" | "professionnel" | "secondaire" | "bac+2" | "licence" | "master" | "doctorat" | "autre" | "nsp";
 
 export type OccupationalStatus = "emploi" | "etudes" | "chomage" | "reconversion";
 
-export type FieldRelation =
-  | "meme-domaine-autre-travail"
-  | "competences-autre-secteur"
-  | "metier-voisin"
-  | "changer-tout"
-  | "explorer";
+export type FieldRelation = "meme-domaine-autre-travail" | "competences-autre-secteur" | "metier-voisin" | "changer-tout" | "explorer";
 
-export type TrainingChoice =
-  | "aucune"
-  | "jours"
-  | "mois"
-  | "6-12"
-  | "1-2ans"
-  | "longue"
-  | "nsp";
+export type TrainingChoice = "aucune" | "jours" | "mois" | "6-12" | "1-2ans" | "longue" | "nsp";
 
 export const TRAINING_MONTHS: Record<TrainingChoice, number | null> = {
   aucune: 0,
@@ -72,7 +44,6 @@ export interface Onboarding {
   dislikedTasks?: InterestId[];
   acquiredSkills?: SkillId[];
   autonomy?: "encadre" | "equilibre" | "autonome";
-  tasksText?: string;
 
   jobNow?: "oui" | "bientot" | "non";
   training?: TrainingChoice;
@@ -83,7 +54,6 @@ export interface Onboarding {
   salaryFloor?: SalaryFloor;
   stableRequired?: YesNoUnsure;
   seasonalOk?: YesNoUnsure;
-  geoPreference?: string;
   travelOk?: "oui" | "occasionnel" | "non";
   licence?: YesNoUnsure;
 
@@ -168,14 +138,20 @@ export interface Profile {
     level: EducationLevel | undefined;
     levelRank: number | undefined;
     field: string | undefined;
+    /** Formation en cours, saisie libre (utilisée uniquement pour repérer ce qui est déjà « évident » pour la personne). */
+    current: string | undefined;
   };
   background: {
     sectorIds: string[];
     familyIds: string[];
     hasBackground: boolean;
+    /** Métiers du jeu de données rapprochés des métiers saisis en texte libre. */
+    matchedOccupationIds: string[];
   };
   transition: {
     maxTrainingMonths: number | null;
+    /** Recherche d’emploi rapide : plafonne la durée de formation tolérée. */
+    urgent: boolean;
     wantsToLeaveField: boolean;
     wantsToStay: boolean;
     exploreBroadly: boolean;

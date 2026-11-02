@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
-const base = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-[15px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+const base =
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-[15px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
 const variants: Record<Variant, string> = {
   primary: "bg-brand text-white hover:bg-brand-dark",
   secondary: "border border-line bg-card text-ink hover:border-brand hover:text-brand",
@@ -11,13 +12,46 @@ const variants: Record<Variant, string> = {
 };
 export const btn = (v: Variant = "primary", extra = "") => `${base} ${variants[v]} ${extra}`;
 
-export function ButtonLink({ href, variant = "primary", children, className = "", external = false }: { href: string; variant?: Variant; children: ReactNode; className?: string; external?: boolean }) {
-  if (external) return <a href={href} target="_blank" rel="noopener noreferrer" className={btn(variant, className)}>{children}</a>;
-  return <Link href={href} className={btn(variant, className)}>{children}</Link>;
+export function ButtonLink({
+  href,
+  variant = "primary",
+  children,
+  className = "",
+  external = false,
+}: {
+  href: string;
+  variant?: Variant;
+  children: ReactNode;
+  className?: string;
+  external?: boolean;
+}) {
+  if (external)
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={btn(variant, className)}>
+        {children}
+      </a>
+    );
+  return (
+    <Link href={href} className={btn(variant, className)}>
+      {children}
+    </Link>
+  );
 }
 
-export function Card({ children, className = "", as: Tag = "div" }: { children: ReactNode; className?: string; as?: "div" | "section" | "article" | "li" }) {
-  return <Tag className={`rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(29,36,51,0.04)] sm:p-6 ${className}`}>{children}</Tag>;
+export function Card({
+  children,
+  className = "",
+  as: Tag = "div",
+}: {
+  children: ReactNode;
+  className?: string;
+  as?: "div" | "section" | "article" | "li";
+}) {
+  return (
+    <Tag className={`rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(29,36,51,0.04)] sm:p-6 ${className}`}>
+      {children}
+    </Tag>
+  );
 }
 
 type Tone = "neutral" | "brand" | "accent" | "warn" | "danger";
@@ -29,7 +63,12 @@ const tones: Record<Tone, string> = {
   danger: "bg-danger-soft text-danger border-danger/25",
 };
 export function Badge({ children, tone = "neutral", icon }: { children: ReactNode; tone?: Tone; icon?: ReactNode }) {
-  return <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${tones[tone]}`}>{icon}{children}</span>;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${tones[tone]}`}>
+      {icon}
+      {children}
+    </span>
+  );
 }
 
 export function Eyebrow({ children }: { children: ReactNode }) {

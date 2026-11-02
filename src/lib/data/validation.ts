@@ -30,7 +30,8 @@ export function validateDataset(occupations: Occupation[], sectors: Sector[], so
       if (v !== null && !(Number.isInteger(v) && v >= 0 && v <= 4)) errors.push(`${at} échelle invalide pour ${d} : ${String(v)}`);
     }
     for (const c of Object.keys(o.constraints)) if (!CONSTRAINT_IDS.includes(c as never)) errors.push(`${at} contrainte inconnue : ${c}`);
-    if (o.training.months !== null && (o.training.months < 0 || o.training.months > 120)) errors.push(`${at} durée de formation invraisemblable`);
+    if (o.training.months !== null && (o.training.months < 0 || o.training.months > 120))
+      errors.push(`${at} durée de formation invraisemblable`);
     if (!o.training.routes.length) errors.push(`${at} aucune voie d’accès`);
     for (const r of o.relatedOccupationIds) if (!byId.has(r)) errors.push(`${at} métier lié inconnu : ${r}`);
     if (!o.sourceReferences.length) errors.push(`${at} aucune référence de source`);

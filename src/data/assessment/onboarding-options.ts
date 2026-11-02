@@ -1,10 +1,4 @@
-import type {
-  EducationLevel,
-  FieldRelation,
-  OccupationalStatus,
-  SalaryFloor,
-  TrainingChoice,
-} from "@/types/profile";
+import type { EducationLevel, FieldRelation, OccupationalStatus, SalaryFloor, TrainingChoice } from "@/types/profile";
 import type { FamilyId } from "@/data/taxonomy";
 
 export const EDUCATION_LEVELS: { id: EducationLevel; label: string; rank: number | undefined; hint?: string }[] = [
@@ -27,7 +21,11 @@ export const STATUS_OPTIONS: { id: OccupationalStatus; label: string }[] = [
 ];
 
 export const FIELD_RELATION_OPTIONS: { id: FieldRelation; label: string; hint: string }[] = [
-  { id: "meme-domaine-autre-travail", label: "Rester dans mon domaine, mais changer de type de travail", hint: "Même secteur, activité différente." },
+  {
+    id: "meme-domaine-autre-travail",
+    label: "Rester dans mon domaine, mais changer de type de travail",
+    hint: "Même secteur, activité différente.",
+  },
   { id: "competences-autre-secteur", label: "Utiliser mes compétences dans un autre secteur", hint: "Mêmes savoir-faire, autre univers." },
   { id: "metier-voisin", label: "Évoluer vers un métier voisin", hint: "Un métier qui partage une partie de mes acquis." },
   { id: "changer-tout", label: "Changer à la fois de métier et de secteur", hint: "Repartir sur une page presque blanche." },
@@ -61,23 +59,88 @@ export interface StudyField {
 
 export const STUDY_FIELDS: StudyField[] = [
   { id: "informatique", label: "Informatique, numérique", sectorIds: ["numerique"], familyIds: ["numerique-dev", "data-geo"] },
-  { id: "ingenierie", label: "Ingénierie, mécanique, électronique, automatisme", sectorIds: ["ingenierie", "industrie", "maintenance"], familyIds: ["ingenierie", "industrie", "maintenance"] },
-  { id: "sciences-vie-terre", label: "Sciences de la vie et de la Terre, biologie", sectorIds: ["recherche", "environnement", "animaux-soins"], familyIds: ["recherche", "environnement"] },
-  { id: "physique-chimie", label: "Physique, chimie, matériaux", sectorIds: ["recherche", "industrie", "instrumentation-mesure"], familyIds: ["recherche", "industrie"] },
-  { id: "maths-stats", label: "Mathématiques, statistiques", sectorIds: ["numerique", "recherche", "finance-assurance"], familyIds: ["data-geo", "finance", "recherche"] },
-  { id: "geographie", label: "Géographie, aménagement, urbanisme", sectorIds: ["geo-amenagement", "environnement", "fonction-publique"], familyIds: ["data-geo", "public", "environnement"] },
-  { id: "agri-environnement", label: "Agriculture, agronomie, environnement", sectorIds: ["agriculture-foret", "environnement", "agroalimentaire"], familyIds: ["agriculture", "environnement"] },
-  { id: "batiment-tp", label: "Bâtiment, travaux publics, architecture", sectorIds: ["construction-btp"], familyIds: ["construction", "ingenierie"] },
+  {
+    id: "ingenierie",
+    label: "Ingénierie, mécanique, électronique, automatisme",
+    sectorIds: ["ingenierie", "industrie", "maintenance"],
+    familyIds: ["ingenierie", "industrie", "maintenance"],
+  },
+  {
+    id: "sciences-vie-terre",
+    label: "Sciences de la vie et de la Terre, biologie",
+    sectorIds: ["recherche", "environnement", "animaux-soins"],
+    familyIds: ["recherche", "environnement"],
+  },
+  {
+    id: "physique-chimie",
+    label: "Physique, chimie, matériaux",
+    sectorIds: ["recherche", "industrie", "instrumentation-mesure"],
+    familyIds: ["recherche", "industrie"],
+  },
+  {
+    id: "maths-stats",
+    label: "Mathématiques, statistiques",
+    sectorIds: ["numerique", "recherche", "finance-assurance"],
+    familyIds: ["data-geo", "finance", "recherche"],
+  },
+  {
+    id: "geographie",
+    label: "Géographie, aménagement, urbanisme",
+    sectorIds: ["geo-amenagement", "environnement", "fonction-publique"],
+    familyIds: ["data-geo", "public", "environnement"],
+  },
+  {
+    id: "agri-environnement",
+    label: "Agriculture, agronomie, environnement",
+    sectorIds: ["agriculture-foret", "environnement", "agroalimentaire"],
+    familyIds: ["agriculture", "environnement"],
+  },
+  {
+    id: "batiment-tp",
+    label: "Bâtiment, travaux publics, architecture",
+    sectorIds: ["construction-btp"],
+    familyIds: ["construction", "ingenierie"],
+  },
   { id: "sante", label: "Santé, paramédical", sectorIds: ["sante"], familyIds: ["sante"] },
   { id: "social", label: "Social, médico-social, psychologie", sectorIds: ["social"], familyIds: ["social"] },
   { id: "education", label: "Éducation, enseignement, formation", sectorIds: ["education-formation"], familyIds: ["education"] },
-  { id: "droit-science-po", label: "Droit, sciences politiques, administration", sectorIds: ["droit-justice", "fonction-publique"], familyIds: ["finance", "public"] },
-  { id: "eco-gestion", label: "Économie, gestion, comptabilité", sectorIds: ["gestion-admin", "finance-assurance"], familyIds: ["gestion", "finance"] },
-  { id: "commerce-marketing", label: "Commerce, vente, marketing", sectorIds: ["commerce-vente", "marketing-communication"], familyIds: ["commerce"] },
-  { id: "communication-lettres", label: "Communication, lettres, langues, journalisme", sectorIds: ["marketing-communication", "medias-edition"], familyIds: ["communication"] },
-  { id: "arts-design", label: "Arts, design, architecture d’intérieur", sectorIds: ["design-creation", "artisanat"], familyIds: ["creation", "artisanat"] },
+  {
+    id: "droit-science-po",
+    label: "Droit, sciences politiques, administration",
+    sectorIds: ["droit-justice", "fonction-publique"],
+    familyIds: ["finance", "public"],
+  },
+  {
+    id: "eco-gestion",
+    label: "Économie, gestion, comptabilité",
+    sectorIds: ["gestion-admin", "finance-assurance"],
+    familyIds: ["gestion", "finance"],
+  },
+  {
+    id: "commerce-marketing",
+    label: "Commerce, vente, marketing",
+    sectorIds: ["commerce-vente", "marketing-communication"],
+    familyIds: ["commerce"],
+  },
+  {
+    id: "communication-lettres",
+    label: "Communication, lettres, langues, journalisme",
+    sectorIds: ["marketing-communication", "medias-edition"],
+    familyIds: ["communication"],
+  },
+  {
+    id: "arts-design",
+    label: "Arts, design, architecture d’intérieur",
+    sectorIds: ["design-creation", "artisanat"],
+    familyIds: ["creation", "artisanat"],
+  },
   { id: "hotellerie-tourisme", label: "Hôtellerie, restauration, tourisme", sectorIds: ["hotellerie-tourisme"], familyIds: ["tourisme"] },
-  { id: "transport-logistique", label: "Transport, logistique, automobile", sectorIds: ["transport-logistique", "automobile-mobilite"], familyIds: ["transport"] },
+  {
+    id: "transport-logistique",
+    label: "Transport, logistique, automobile",
+    sectorIds: ["transport-logistique", "automobile-mobilite"],
+    familyIds: ["transport"],
+  },
   { id: "sport", label: "Sport, activité physique (STAPS)", sectorIds: ["sport-loisirs"], familyIds: ["sport"] },
   { id: "histoire-culture", label: "Histoire, patrimoine, culture", sectorIds: ["culture-patrimoine"], familyIds: ["culture"] },
   { id: "securite", label: "Sécurité, défense, secours", sectorIds: ["securite-secours"], familyIds: ["securite"] },

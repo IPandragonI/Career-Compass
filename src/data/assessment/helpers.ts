@@ -1,18 +1,5 @@
-import type {
-  AversionLevel,
-  Effect,
-  Option,
-  Question,
-  TraitId,
-} from "@/types/assessment";
-import type {
-  ConstraintId,
-  EnvDimId,
-  FamilyId,
-  InterestId,
-  MotivationId,
-  SkillId,
-} from "@/data/taxonomy";
+import type { AversionLevel, Effect, Option, Question, TraitId } from "@/types/assessment";
+import type { ConstraintId, EnvDimId, FamilyId, InterestId, MotivationId, SkillId } from "@/data/taxonomy";
 
 /* Constructeurs d’effets : écriture compacte pour le contenu du questionnaire. */
 export const i = (id: InterestId, w = 2): Effect => ({ k: "interest", id, w });
@@ -69,10 +56,11 @@ function effectKey(ef: Effect): string | null {
 /** Calcule la liste des clés de profil qu’une question peut éclairer, à partir de ses options. */
 export function informsFromOptions(options: Option[] | undefined): string[] {
   const keys = new Set<string>();
-  for (const o of options ?? []) for (const ef of o.effects) {
-    const k = effectKey(ef);
-    if (k) keys.add(k);
-  }
+  for (const o of options ?? [])
+    for (const ef of o.effects) {
+      const k = effectKey(ef);
+      if (k) keys.add(k);
+    }
   return [...keys];
 }
 

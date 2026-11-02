@@ -13,7 +13,8 @@ export const SOURCES: SourceDef[] = [
     url: "https://www.data.gouv.fr/datasets/repertoire-operationnel-des-metiers-et-des-emplois-rome",
     version: "ROME 4.0 (version exacte non vérifiée pour ce jeu de données)",
     retrievedAt: null,
-    licence: "Données ouvertes France Travail : attribution et mention de la date de mise à jour requises (conditions à vérifier sur data.gouv.fr).",
+    licence:
+      "Données ouvertes France Travail : attribution et mention de la date de mise à jour requises (conditions à vérifier sur data.gouv.fr).",
     derivedFields: ["domaine ROME (lettre A à N, repère éditorial)", "regroupement des métiers en familles"],
     note: "Utilisé comme repère de classification des domaines professionnels. Aucun code de fiche n’est reproduit.",
   },

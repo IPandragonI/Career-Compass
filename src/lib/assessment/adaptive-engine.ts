@@ -57,7 +57,13 @@ export function progressInfo(onboarding: Onboarding, state: EngineState, config:
   const remainingQ = Math.max(1, Math.min(config.maxQuestions - asked, Math.max(config.minQuestions - asked, Math.ceil(deficit / 0.1))));
   const remainingMin = Math.max(1, Math.round((remainingQ * 28) / 60));
   const elapsedMin = Math.round(elapsedEstimate(state.asked, state.answers) / 60);
-  return { profile, remainingQuestions: remainingQ, remainingMinutes: remainingMin, elapsedMinutes: elapsedMin, coverage: profile.coverage };
+  return {
+    profile,
+    remainingQuestions: remainingQ,
+    remainingMinutes: remainingMin,
+    elapsedMinutes: elapsedMin,
+    coverage: profile.coverage,
+  };
 }
 
 export function questionOptions(q: Question, ctx: QuestionContext) {

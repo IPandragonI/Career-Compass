@@ -2,8 +2,9 @@ import type { Occupation } from "@/types/occupation";
 import { PART1 } from "./part1-tech";
 import { PART2 } from "./part2-terrain";
 import { PART3 } from "./part3-services";
+import { CONSTRAINT_PATCHES, PART4 } from "./part4-extension";
 
-const jaccard = <T,>(a: T[], b: T[]) => {
+const jaccard = <T>(a: T[], b: T[]) => {
   if (!a.length && !b.length) return 0;
   const sa = new Set(a);
   const inter = b.filter((x) => sa.has(x)).length;
@@ -20,6 +21,21 @@ export function similarity(a: Occupation, b: Occupation): number {
   );
 }
 
+/** Ajoute des contraintes éditoriales sans jamais écraser une valeur déjà renseignée. */
+function applyPatches(list: Occupation[]): Occupation[] {
+  return list.map((occ) => {
+    const patch = CONSTRAINT_PATCHES[occ.id];
+    if (!patch) return occ;
+    const added: Occupation["constraints"] = {};
+    for (const t of patch.split(" ")) {
+      const id = t.replace(/^[!~]/, "") as keyof Occupation["constraints"];
+      if (occ.constraints[id] !== undefined) continue;
+      added[id] = t.startsWith("!") ? "no" : t.startsWith("~") ? "sometimes" : "yes";
+    }
+    return { ...occ, constraints: { ...occ.constraints, ...added } };
+  });
+}
+
 function withRelations(list: Occupation[]): Occupation[] {
   return list.map((occ) => ({
     ...occ,
@@ -33,5 +49,5 @@ function withRelations(list: Occupation[]): Occupation[] {
   }));
 }
 
-export const OCCUPATIONS: Occupation[] = withRelations([...PART1, ...PART2, ...PART3]);
+export const OCCUPATIONS: Occupation[] = withRelations(applyPatches([...PART1, ...PART2, ...PART3, ...PART4]));
 export const OCCUPATION_BY_ID: Record<string, Occupation> = Object.fromEntries(OCCUPATIONS.map((x) => [x.id, x]));

@@ -39,14 +39,23 @@ describe("persistance", () => {
     expect(migrateSession("n'importe quoi")).toBeNull();
     const s = migrateSession({
       schemaVersion: SCHEMA_VERSION,
-      engine: { asked: ["q-free-day", "q-disparue"], answers: { "q-free-day": { kind: "single", value: 3 }, "q-disparue": { kind: "single", value: "a" } } },
+      engine: {
+        asked: ["q-free-day", "q-disparue"],
+        answers: { "q-free-day": { kind: "single", value: 3 }, "q-disparue": { kind: "single", value: "a" } },
+      },
     });
     expect(s?.engine.asked).toEqual(["q-free-day"]);
     expect(s?.engine.answers["q-free-day"]).toBeUndefined();
   });
 
   it("migre une ancienne session (schéma 0/1) sans la casser", () => {
-    const old = { schemaVersion: 1, onboarding: { training: "mois" }, asked: ["q-free-day"], answers: { "q-free-day": { kind: "single", value: "tech" } }, phase: "questions" };
+    const old = {
+      schemaVersion: 1,
+      onboarding: { training: "mois" },
+      asked: ["q-free-day"],
+      answers: { "q-free-day": { kind: "single", value: "tech" } },
+      phase: "questions",
+    };
     const s = migrateSession(old);
     expect(s?.schemaVersion).toBe(SCHEMA_VERSION);
     expect(s?.engine.answers["q-free-day"]).toEqual({ kind: "single", value: "tech" });
@@ -54,7 +63,12 @@ describe("persistance", () => {
   });
 
   it("repart du début du questionnaire si sa version a changé", () => {
-    const s = migrateSession({ schemaVersion: SCHEMA_VERSION, questionnaireVersion: 0, phase: "revue", engine: { asked: ["q-free-day"], answers: { "q-free-day": { kind: "single", value: "tech" } } } });
+    const s = migrateSession({
+      schemaVersion: SCHEMA_VERSION,
+      questionnaireVersion: 0,
+      phase: "revue",
+      engine: { asked: ["q-free-day"], answers: { "q-free-day": { kind: "single", value: "tech" } } },
+    });
     expect(s?.engine.asked).toEqual([]);
     expect(s?.phase).toBe("questions");
   });
@@ -88,7 +102,11 @@ describe("persistance", () => {
 
 describe("jeu de données", () => {
   it("est valide et cohérent", () => {
-    const errors = validateDataset(OCCUPATIONS, SECTORS, SOURCES.map((s) => s.id));
+    const errors = validateDataset(
+      OCCUPATIONS,
+      SECTORS,
+      SOURCES.map((s) => s.id),
+    );
     expect(errors).toEqual([]);
   });
 

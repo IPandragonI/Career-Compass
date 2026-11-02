@@ -16,13 +16,7 @@ export const CATEGORY_DESC: Record<TransitionCategory, string> = {
   ambitieuse: "Attrayante, mais demande une formation importante ou un changement notable : à investiguer.",
 };
 
-export type ScoreDimensionId =
-  | "interest"
-  | "environment"
-  | "motivation"
-  | "skills"
-  | "accessibility"
-  | "constraints";
+export type ScoreDimensionId = "interest" | "environment" | "motivation" | "skills" | "accessibility" | "constraints";
 
 export interface DimensionScore {
   id: ScoreDimensionId;
@@ -35,10 +29,7 @@ export interface DimensionScore {
   weighted: number;
 }
 
-export type FitLabel =
-  | "Piste particulièrement intéressante"
-  | "Piste à explorer"
-  | "Piste possible sous certaines conditions";
+export type FitLabel = "Piste particulièrement intéressante" | "Piste à explorer" | "Piste possible sous certaines conditions";
 
 export interface ReasonEvidence {
   questionId: string;
